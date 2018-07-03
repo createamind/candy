@@ -7,9 +7,9 @@ What is candy? A model with the structure: Hierarchical Observation -- Plan&Poli
 
 ## Running Candy
 (This project is still working in progress.)
-* Download Carla-0.8.2 from [here][carlarelease]
-* Start CarlaUE4 engine in server mode, using command from [here][carlagithub] 
-* run python main.py
+* Download Carla-0.8.2 from [here][carlarelease].
+* Start CarlaUE4 engine in server mode, using command from [here][carlagithub].
+* Run python main.py.
 
 [carlagithub]: http://carla.readthedocs.io/en/latest/running_simulator_standalone/
 [carlarelease]: https://github.com/carla-simulator/carla/releases
