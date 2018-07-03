@@ -3,7 +3,7 @@ Candy: Self-driving in Carla Environment.
 
  ![image](https://github.com/createamind/candy/blob/master/screenshots/candy.png)
 
-What is candy? A model with the structure: Hieratical Observation -- Plan&Policy -- Hieratical Actions
+What is candy? A model with the structure: Hierarchical Observation -- Plan&Policy -- Hierarchical Actions
 
 ## Running Candy
 (This project is still working in progress.)
