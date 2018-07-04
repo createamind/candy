@@ -13,6 +13,7 @@ from modules.networks import MLP, TransitionNetwork, PolicyNetwork, ValueNetwork
 
 import tensorflow as tf
 
+import yaml
 
 
 class Machine(object):
@@ -36,7 +37,7 @@ class Machine(object):
         # self.future_vae = VAE(args, self.c3d_future.inference())
 
 
-        z = self.vae.inference()
+        z = self.c3d_encoder.inference()
         self.z = z
 
         self.raw_decoder = ImageDecoder(args, 'raw_image', z)
@@ -60,22 +61,18 @@ class Machine(object):
 
         self.policy = MLP(args, 'policy', z, 5, 100)
         self.value = MLP(args, 'value', z, 4, 100)
-        self.transition = MLP(args, 'transition', z, 1000, 1000)
-
-
-        self.z_mcts = tf.placeholder(tf.float32, shape=(1, 1000))
-        self.policy_mcts = MLP(args, 'policy', self.z_mcts, 5, 100)
-        self.policy_mcts = self.policy_mcts.inference()
-        self.value_mcts = MLP(args, 'value', self.z_mcts, 4, 100)
-        self.value_mcts = self.value_mcts.inference()
-        self.transition_mcts = MLP(args, 'transition', self.z_mcts, 1000, 1000)
-        self.transition_mcts = self.transition_mcts.inference()
-
+        self.transition = MLP(args, 'transition', z, 100, 100)
 
         self.imitation_loss = MESLoss(args, self.policy.inference(), inputs[7])
         self.reward_loss = MESLoss(args, self.value.inference(), inputs[8])
         self.transition_loss = MESLoss(args, self.transition.inference(), self.future_vae.inference())
 
+
+        # MCTS
+        self.z_mcts = tf.placeholder(tf.float32, shape=(1, 100))
+        self.policy_mcts = MLP(args, 'policy', self.z_mcts, 5, 100).inference()
+        self.value_mcts = MLP(args, 'value', self.z_mcts, 4, 100).inference()
+        self.transition_mcts = MLP(args, 'transition', self.z_mcts, 100, 100).inference()
 
         # self.mcts = MCTS('mcts', self.policy_inference, self.value_inference, self.transition_inference)
         # self.action = self.mcts.inference()
@@ -118,6 +115,16 @@ class Machine(object):
         writer = tf.summary.FileWriter('./logs/candy', sess.graph)
 
         print('Model Started!')
+
+    def get_args(self):
+        with open("args.yaml", 'r') as f:
+            try:
+                t = yaml.load(f)
+                print(t)
+                return t
+            except yaml.YAMLError as exc:
+                print(exc)
+
 
     def train(self, inputs):
         for step in xrange(10):

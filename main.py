@@ -50,7 +50,6 @@ try:
     from pygame.locals import K_t
     from pygame.locals import K_m
     from pygame.locals import K_n
-    from pygame.locals import K_0
     from pygame.locals import K_1
     from pygame.locals import K_2
     from pygame.locals import K_3
@@ -91,7 +90,7 @@ def make_carla_settings(args):
     """Make a CarlaSettings object with the settings we need."""
     settings = CarlaSettings()
     settings.set(
-        SynchronousMode=False,
+        SynchronousMode=True,
         SendNonPlayerAgentsInfo=True,
         NumberOfVehicles=15,
         NumberOfPedestrians=30,

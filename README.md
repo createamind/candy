@@ -16,7 +16,7 @@ What is candy? A model with the structure: Hierarchical Observation -- Plan&Poli
 
 
 ## Candy Features
-* C3D-VAE for observation abstraction.
+* Use C3D for observation abstraction.
 * Combining imitation learning and reinforcement learning.
 * Using MCTS for planning.
 * Plenty of auxiliary tasks for robust hidden representation.
