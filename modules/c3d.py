@@ -83,12 +83,12 @@ class C3D_Encoder(object):
 
 		self.args = args
 		self.name = name
-
+		self.x = x
 		self.define_variables()
-		self.inference(x)
+		self.saver = tf.train.Saver(self.weights.values() + self.biases.values())
 
-	def inference(self, x):
-		self.output = inference_c3d(x, 0.5, self.args.batch_size, self.weights, self.biases)
+	def inference(self):
+		self.output = inference_c3d(self.x, 0.5, self.args.batch_size, self.weights, self.biases)
 		return self.output
 
 	
@@ -130,7 +130,6 @@ class C3D_Encoder(object):
 
 	def variable_restore(self, sess):
 
-		self.saver = tf.train.Saver(self.weights.values() + self.biases.values())
 		model_filename = os.path.join("save", self.name)
 		if os.path.isfile(model_filename):
 			self.saver.restore(sess, model_filename)

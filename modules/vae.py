@@ -73,6 +73,7 @@ class ConvVae(Model):
             mean, stddev = tf.split(1, 2, z)
             stddev = tf.sqrt(tf.exp(stddev))
             input_sample = mean + self.epsilon * stddev
+            
         decoder = Layers(tf.expand_dims(tf.expand_dims(input_sample, 1), 1))
         decoder.deconv2d(3, 128, padding='VALID')
         decoder.deconv2d(3, 128, padding='VALID', stride=2)

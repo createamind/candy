@@ -5,9 +5,11 @@ from modules.vae import VAE
 
 from modules.mcts import MCTS
 
+from modules.policy_gradient import PG
+
 from modules.deconv import ImageDecoder
 
-from modules.losses import MSELoss
+from modules.losses import MSELoss, CrossEntropyLoss
 
 from modules.networks import MLP, TransitionNetwork, PolicyNetwork, ValueNetwork
 
@@ -36,7 +38,6 @@ class Machine(object):
         # self.vae = VAE(args, self.c3d_encoder.inference())
         # self.future_vae = VAE(args, self.c3d_future.inference())
 
-
         z = self.c3d_encoder.inference()
         self.z = z
 
@@ -50,29 +51,33 @@ class Machine(object):
         self.depth_decoder_loss = MSELoss(args, 'depth', self.depth_decoder.inference(), inputs[2])
 
         self.speed_prediction = MLP(args, 'speed', z)
-        self.speed_loss = MSELoss(args, self.speed_prediction.inference(), inputs[4])        
+        self.speed_loss = MSELoss(args, 'speed', self.speed_prediction.inference(), inputs[4])        
 
         self.collision_prediction = MLP(args, 'collision', z)
-        self.collision_loss = MSELoss(args, self.collision_prediction.inference(), inputs[5])
+        self.collision_loss = MSELoss(args, 'collision', self.collision_prediction.inference(), inputs[5])
 
         self.intersection_prediction = MLP(args, 'intersection', z)
-        self.intersection_loss = MSELoss(args, self.intersection_prediction.inference(), inputs[6])
+        self.intersection_loss = MSELoss(args, 'intersection', self.intersection_prediction.inference(), inputs[6])
 
 
-        self.policy = MLP(args, 'policy', z, 5, 100)
-        self.value = MLP(args, 'value', z, 4, 100)
-        self.transition = MLP(args, 'transition', z, 100, 100)
-
-        self.imitation_loss = MESLoss(args, self.policy.inference(), inputs[7])
-        self.reward_loss = MESLoss(args, self.value.inference(), inputs[8])
-        self.transition_loss = MESLoss(args, self.transition.inference(), self.future_vae.inference())
+        self.policy = PG(args, 'policy', z, 13)
+        self.log_probs = self.policy.inference()
+        self.policy_loss = PG_Loss(args, 'policy', inputs[7], inputs[8], self.log_probs)
 
 
-        # MCTS
-        self.z_mcts = tf.placeholder(tf.float32, shape=(1, 100))
-        self.policy_mcts = MLP(args, 'policy', self.z_mcts, 5, 100).inference()
-        self.value_mcts = MLP(args, 'value', self.z_mcts, 4, 100).inference()
-        self.transition_mcts = MLP(args, 'transition', self.z_mcts, 100, 100).inference()
+        # self.value = MLP(args, 'value', z, 1, 100)
+        self.transition = MLP(args, 'transition', z, 100 + 13, 100)
+        self.transition_loss = MSELoss(args, 'transition', self.transition.inference(), self.c3d_future.inference())
+
+        # self.imitation_loss = CrossEntropyLoss(args, self.policy.inference(), inputs[7])
+        # self.reward_loss = MESLoss(args, self.value.inference(), inputs[8])
+
+
+        # # MCTS
+        # self.z_mcts = tf.placeholder(tf.float32, shape=(1, 100))
+        # self.policy_mcts = MLP(args, 'policy', self.z_mcts, 36, 100).inference()
+        # self.value_mcts = MLP(args, 'value', self.z_mcts, 1, 100).inference()
+        # self.transition_mcts = MLP(args, 'transition', self.z_mcts, 100, 100).inference()
 
         # self.mcts = MCTS('mcts', self.policy_inference, self.value_inference, self.transition_inference)
         # self.action = self.mcts.inference()
@@ -88,14 +93,16 @@ class Machine(object):
         # self.safety = ValueNetwork('safety')
         # self.goal = ValueNetwork('goal')
 
-        self.variable_parts = [self.c3d_encoder, self.raw_decoder, self.seg_decoder, self.policy]
+        self.variable_parts = [self.c3d_encoder, self.raw_decoder, self.seg_decoder, self.depth_decoder, \
+            self.speed_prediction, self.collision_prediction, self.intersection_prediction, self.policy, self.transition]
+
+
         self.loss_parts = self.collision_loss.inference() + self.intersection_loss.inference() + self.speed_loss.inference() + \
-                self.raw_decoder_loss.inference() + self.seg_decoder_loss.inference() + self.imitation_loss.inference() + self.reward_loss.inference() + self.transition_loss.inference()
+                self.raw_decoder_loss.inference() + self.seg_decoder_loss.inference() + self.policy_loss.inference() + self.transition_loss.inference()
         
         
         weight_decay_loss = tf.get_collection('weightdecay_losses')
-        vae_loss = tf.get_collection('vae_loss')
-        total_loss = tf.add_n(self.loss_parts) + weight_decay_loss + vae_loss
+        total_loss = tf.add_n(self.loss_parts) + weight_decay_loss
         tf.summary.scalar('total_loss', tf.reduce_mean(total_loss))
 
         self.final_ops = []
@@ -126,14 +133,20 @@ class Machine(object):
                 print(exc)
 
 
-    def train(self, inputs):
-        for step in xrange(10):
-            self.sess.run(self.final_ops, feed_dict=self.inputs.get_feed_dict_train(inputs))
-
+    def train(self, inputs, global_step):
+        self.sess.run(self.final_ops, feed_dict=self.inputs.get_feed_dict_train(inputs))
+        for i in self.variable_parts:
+            i.saver.save(sess, 'my-model', global_step=global_step)
 
     def inference(self, inputs):
-        self.sess.run(self.z, feed_dict=self.inputs.get_feed_dict_inference(inputs))
+        log_probs = self.sess.run(self.log_probs, feed_dict=self.inputs.get_feed_dict_train(inputs))
+        print(log_probs)
 
-        self.mcts = MCTS(self.sess, self.policy_mcts, self.value_mcts, self.transition_mcts)
+        action = np.random.choice(range(log_probs.shape[1]), p=log_probs.ravel())  # 根据概率来选 action
+        print(action)
+        return action
+        # z = self.sess.run(self.z, feed_dict=self.inputs.get_feed_dict_inference(inputs))
 
-        return self.mcts.get_action()
+        # self.mcts = MCTS(z, self.sess, self.policy_mcts, self.value_mcts, self.transition_mcts, self.z_mcts)
+
+        # return self.mcts.get_action()

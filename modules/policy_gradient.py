@@ -1,5 +1,5 @@
-class MLP:
-	def __init__(self, args, name, x, s=10, hidden=100):
+class PG:
+	def __init__(self, args, name, x, output=10, hidden=100):
 		self.args = args
 		self.name = name
         self.x = x
@@ -28,3 +28,20 @@ class MLP:
 		if os.path.isfile(model_filename):
 			self.saver.restore(sess, model_filename)
     
+
+class PG_Loss:
+    def __init__(self, args, name, action, reward, log_probs):
+		self.args = args
+        self.name = name
+		self.action = action
+		self.reward = reward
+		self.log_probs = log_probs
+
+        
+	def inference(self):
+        neg_log_prob = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.log_probs, labels=self.action)
+        loss = tf.reduce_mean(neg_log_prob * self.reward)
+        
+        tf.summary.scalar(self.name, loss)
+        return loss
+

@@ -29,7 +29,7 @@ value:
 transition:
     learning_rage: 0.001
     weight_decay: 0.00001
-
+batch_size: 32
 
 
 name: Martin D'vloper

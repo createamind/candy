@@ -44,6 +44,7 @@ class ImageDecoder:
 		self.args = args
 		self.name = name
         self.x = x
+		self.saver = tf.train.Saver(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.name))
 
 	def inference(self):
         deconv = DeconvNetwork()
@@ -59,7 +60,6 @@ class ImageDecoder:
 
 	def variable_restore(self, sess):
 
-		self.saver = tf.train.Saver(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.name))
 		model_filename = os.path.join("save", self.name)
 		if os.path.isfile(model_filename):
 			self.saver.restore(sess, model_filename)

@@ -80,10 +80,10 @@ from carla.util import print_over_same_line
 
 from carla_wrapper import Carla_Wrapper
 
-WINDOW_WIDTH = 800
-WINDOW_HEIGHT = 600
-MINI_WINDOW_WIDTH = 320
-MINI_WINDOW_HEIGHT = 180
+WINDOW_WIDTH = 112
+WINDOW_HEIGHT = 112
+MINI_WINDOW_WIDTH = 50
+MINI_WINDOW_HEIGHT = 50
 
 
 def make_carla_settings(args):
@@ -279,18 +279,16 @@ class CarlaGame(object):
         
         speed = player_measurements.forward_speed * 3.6
 
-        acce = player_measurements.acceleration.x + player_measurements.acceleration.y
-
         collision = player_measurements.collision_vehicles + player_measurements.collision_pedestrians + player_measurements.collision_other
 
         intersection = player_measurements.intersection_otherlane + player_measurements.intersection_offroad
         
-        print('speed = ' + str(speed) + 'acce = ' + str(acce) + 'collision = ' + str(collision) + 'intersection = ' + str(intersection))
+        print('speed = ' + str(speed) + 'collision = ' + str(collision) + 'intersection = ' + str(intersection))
 
         if reward is None:
-            reward = speed / 10 - acce / 10 - collision / 10 - intersection * 5
+            reward = (speed / 10 - collision / 10 - intersection * 5) / 100.0
 
-        return reward, [speed, acce, collision, intersection]
+        return reward, [speed, collision, intersection]
         
     def _get_keyboard_control(self, keys):
         """
@@ -327,23 +325,23 @@ class CarlaGame(object):
 
         reward = None
         if keys[K_1]:
-            reward = -100
+            reward = -1
         if keys[K_2]:
-            reward = -10
+            reward = -0.1
         if keys[K_3]:
-            reward = -5
+            reward = -0.05
         if keys[K_4]:
-            reward = -2
+            reward = -0.02
         if keys[K_5]:
             reward = 0
         if keys[K_6]:
-            reward = 2
+            reward = 0.02
         if keys[K_7]:
-            reward = 5
+            reward = 0.05
         if keys[K_8]:
-            reward = 10
+            reward = 0.1
         if keys[K_9]:
-            reward = 100
+            reward = 1
 
         return control, reward
 
