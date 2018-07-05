@@ -1,23 +1,23 @@
-# -*- coding: utf-8 -*-
+# # -*- coding: utf-8 -*-
 
 
 
-CAI_YANG = 10
-class MCTS():
-    def __init__(self, z, sess, policy, value, transision, z_place):
-        self.sess = sess
-        self.policy = policy
-        self.value = value
-        self.transision = transision
-        self.z = z
-        self.z_place = z_place
+# CAI_YANG = 10
+# class MCTS():
+#     def __init__(self, z, sess, policy, value, transision, z_place):
+#         self.sess = sess
+#         self.policy = policy
+#         self.value = value
+#         self.transision = transision
+#         self.z = z
+#         self.z_place = z_place
 
 
 
-    def get_action(self):
-        p = self.sess.run(self.policy, feed_dict={self.z_place: self.z})
+#     def get_action(self):
+#         p = self.sess.run(self.policy, feed_dict={self.z_place: self.z})
 
-        for i in range(CAI_YANG):
+#         for i in range(CAI_YANG):
 
 
 

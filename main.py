@@ -20,8 +20,11 @@ Use ARROWS or WASD keys for control.
     Q            : toggle reverse
     Space        : hand-brake
     P            : toggle autopilot
-
     R            : restart level
+    1-9            : set reward
+    n            : set auto driving
+    m            : set manual pilot
+    t            : toggle display
 
 STARTING in a moment...
 """
@@ -80,10 +83,10 @@ from carla.util import print_over_same_line
 
 from carla_wrapper import Carla_Wrapper
 
-WINDOW_WIDTH = 112
-WINDOW_HEIGHT = 112
-MINI_WINDOW_WIDTH = 50
-MINI_WINDOW_HEIGHT = 50
+WINDOW_WIDTH = 500
+WINDOW_HEIGHT = 500
+MINI_WINDOW_WIDTH = 200
+MINI_WINDOW_HEIGHT = 200
 
 
 def make_carla_settings(args):
@@ -98,20 +101,27 @@ def make_carla_settings(args):
         QualityLevel=args.quality_level)
     settings.randomize_seeds()
     camera0 = sensor.Camera('CameraRGB')
-    camera0.set_image_size(WINDOW_WIDTH, WINDOW_HEIGHT)
+    camera0.set_image_size(112, 112)
     camera0.set_position(2.0, 0.0, 1.4)
     camera0.set_rotation(0.0, 0.0, 0.0)
     settings.add_sensor(camera0)
     camera1 = sensor.Camera('CameraDepth', PostProcessing='Depth')
-    camera1.set_image_size(WINDOW_WIDTH, WINDOW_HEIGHT)
+    camera1.set_image_size(112, 112)
     camera1.set_position(2.0, 0.0, 1.4)
     camera1.set_rotation(0.0, 0.0, 0.0)
     settings.add_sensor(camera1)
     camera2 = sensor.Camera('CameraSemSeg', PostProcessing='SemanticSegmentation')
-    camera2.set_image_size(WINDOW_WIDTH, WINDOW_HEIGHT)
+    camera2.set_image_size(112, 112)
     camera2.set_position(2.0, 0.0, 1.4)
     camera2.set_rotation(0.0, 0.0, 0.0)
     settings.add_sensor(camera2)
+
+    camera3 = sensor.Camera('CameraForHuman')
+    camera3.set_image_size(WINDOW_WIDTH, WINDOW_HEIGHT)
+    camera3.set_position(2.0, 0.0, 1.4)
+    camera3.set_rotation(0.0, 0.0, 0.0)
+    settings.add_sensor(camera3)
+
     if args.lidar:
         lidar = sensor.Lidar('Lidar32')
         lidar.set_position(0, 0, 2.5)
@@ -148,7 +158,7 @@ class Timer(object):
 
 
 class CarlaGame(object):
-    def __init__(self, carla_client, args):
+    def __init__(self, carla_client, args, wrapper):
         self.client = carla_client
         self._carla_settings = make_carla_settings(args)
         self._timer = None
@@ -156,7 +166,7 @@ class CarlaGame(object):
         self._main_image = None
         self._mini_view_image1 = None
         self._mini_view_image2 = None
-        self._enable_autopilot = args.autopilot
+        self._enable_autopilot = True
         self._lidar_measurement = None
         self._map_view = None
         self._is_on_reverse = False
@@ -168,9 +178,9 @@ class CarlaGame(object):
         self._agent_positions = None
 
         self.should_display = True
-        self.manual = False
+        self.manual = True
 
-        self.carla_wrapper = Carla_Wrapper()
+        self.carla_wrapper = wrapper
 
     def execute(self):
         """Launch the PyGame."""
@@ -215,10 +225,11 @@ class CarlaGame(object):
 
         measurements, sensor_data = self.client.read_data()
 
-        self._main_image = sensor_data.get('CameraRGB', None)
+        self._main_image = sensor_data.get('CameraForHuman', None)
         self._mini_view_image1 = sensor_data.get('CameraDepth', None)
         self._mini_view_image2 = sensor_data.get('CameraSemSeg', None)
         self._lidar_measurement = sensor_data.get('Lidar32', None)
+        # self._human_image = sensor_data.get('CameraForHuman', None)
 
         # Print measurements every second.
         if self._timer.elapsed_seconds_since_lap() > 1.0:
@@ -245,7 +256,7 @@ class CarlaGame(object):
 
             self._timer.lap()
 
-        control = self._get_keyboard_control(pygame.key.get_pressed())
+        control, reward = self._get_keyboard_control(pygame.key.get_pressed())
 
 
         # Set the player position
@@ -267,21 +278,21 @@ class CarlaGame(object):
         if self.manual:
             if self._enable_autopilot:
                 control = measurements.player_measurements.autopilot_control
-        elif:
+        else:
             control = self.carla_wrapper.get_control(sensor_data)
 
         self.client.send_control(control)
-        reward, reward_details = self.calculate_reward(measurements, reward)
-        self.carla_wrapper.update_all(measurements, sensor_data, control, reward, reward_details, self.manual)
+        reward, _ = self.calculate_reward(measurements, reward)
+        self.carla_wrapper.update_all(measurements, sensor_data, control, reward)
 
 
-    def calculate_reward(self, reward):
+    def calculate_reward(self, measurements, reward):
         
-        speed = player_measurements.forward_speed * 3.6
+        speed = measurements.player_measurements.forward_speed * 3.6
 
-        collision = player_measurements.collision_vehicles + player_measurements.collision_pedestrians + player_measurements.collision_other
+        collision = measurements.player_measurements.collision_vehicles + measurements.player_measurements.collision_pedestrians + measurements.player_measurements.collision_other
 
-        intersection = player_measurements.intersection_otherlane + player_measurements.intersection_offroad
+        intersection = measurements.player_measurements.intersection_otherlane + measurements.player_measurements.intersection_offroad
         
         print('speed = ' + str(speed) + 'collision = ' + str(collision) + 'intersection = ' + str(intersection))
 
@@ -296,16 +307,16 @@ class CarlaGame(object):
         if a new episode was requested.
         """
         if keys[K_r]:
-            return None
+            return None, None
         if keys[K_t]:
             self.should_display = not self.should_display
-            return 'done'
+            return 'done', None
         if keys[K_m]:
             self.manual = True
-            return 'done'
+            return 'done', None
         if keys[K_n]:
             self.manual = False
-            return 'done'
+            return 'done', None
         control = VehicleControl()
         if keys[K_LEFT] or keys[K_a]:
             control.steer = -1.0
@@ -495,11 +506,12 @@ def main():
 
     print(__doc__)
 
+    wrapper = Carla_Wrapper()
     while True:
         try:
 
             with make_carla_client(args.host, args.port) as client:
-                game = CarlaGame(client, args)
+                game = CarlaGame(client, args, wrapper)
                 game.execute()
                 break
 

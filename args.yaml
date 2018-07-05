@@ -1,36 +1,35 @@
 ---
 c3d_encoder:
-    learning_rage: 0.001
+    learning_rate: 0.001
     weight_decay: 0.00001
 raw_image:
-    learning_rage: 0.001
+    learning_rate: 0.001
     weight_decay: 0.00001
 seg:
-    learning_rage: 0.001
+    learning_rate: 0.001
     weight_decay: 0.00001
 depth:
-    learning_rage: 0.001
+    learning_rate: 0.001
     weight_decay: 0.00001
 speed:
-    learning_rage: 0.001
+    learning_rate: 0.001
     weight_decay: 0.00001
 collision:
-    learning_rage: 0.001
+    learning_rate: 0.001
     weight_decay: 0.00001
 intersection:
-    learning_rage: 0.001
+    learning_rate: 0.001
     weight_decay: 0.00001
 policy:
-    learning_rage: 0.001
+    learning_rate: 0.001
     weight_decay: 0.00001
 value:
-    learning_rage: 0.001
+    learning_rate: 0.001
     weight_decay: 0.00001
 transition:
-    learning_rage: 0.001
+    learning_rate: 0.001
     weight_decay: 0.00001
-batch_size: 32
-
+batch_size: 8
 
 name: Martin D'vloper
 job: Developer

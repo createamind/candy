@@ -58,9 +58,9 @@ def inference_c3d(_X, _dropout, batch_size, _weights, _biases):
 	dense2 = tf.nn.dropout(dense2, _dropout)
 
 	# Output: class prediction
-	# out = tf.matmul(dense2, _weights['out']) + _biases['out']
+	out = tf.matmul(dense2, _weights['out']) + _biases['out']
 
-	return dense2
+	return out
 
 
 
@@ -79,33 +79,36 @@ def _variable_with_weight_decay(name, shape, wd):
 
 
 class C3D_Encoder(object):
-	def __init__(self, args, name, x):
+	def __init__(self, args, name, x, reuse=False):
 
 		self.args = args
 		self.name = name
 		self.x = x
+		self.reuse = reuse
 		self.define_variables()
-		self.saver = tf.train.Saver(self.weights.values() + self.biases.values())
+
 
 	def inference(self):
-		self.output = inference_c3d(self.x, 0.5, self.args.batch_size, self.weights, self.biases)
+		self.output = inference_c3d(self.x, 0.5, self.args['batch_size'], self.weights, self.biases)
+		if self.reuse==False:
+			self.saver = tf.train.Saver(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='var_name'))
 		return self.output
 
 	
 	def define_variables(self):
-		with tf.variable_scope('var_name', reuse=True) as var_scope:
+		with tf.variable_scope('var_name', reuse=self.reuse) as var_scope:
 			self.weights = {
-				'wc1': _variable_with_weight_decay('wc1', [3, 3, 3, 3, 64], self.args.weight_decay['c3d_encoder']),
-				'wc2': _variable_with_weight_decay('wc2', [3, 3, 3, 64, 128], self.args.weight_decay['c3d_encoder']),
-				'wc3a': _variable_with_weight_decay('wc3a', [3, 3, 3, 128, 256], self.args.weight_decay['c3d_encoder']),
-				'wc3b': _variable_with_weight_decay('wc3b', [3, 3, 3, 256, 256], self.args.weight_decay['c3d_encoder']),
-				'wc4a': _variable_with_weight_decay('wc4a', [3, 3, 3, 256, 512], self.args.weight_decay['c3d_encoder']),
-				'wc4b': _variable_with_weight_decay('wc4b', [3, 3, 3, 512, 512], self.args.weight_decay['c3d_encoder']),
-				'wc5a': _variable_with_weight_decay('wc5a', [3, 3, 3, 512, 512], self.args.weight_decay['c3d_encoder']),
-				'wc5b': _variable_with_weight_decay('wc5b', [3, 3, 3, 512, 512], self.args.weight_decay['c3d_encoder']),
-				'wd1': _variable_with_weight_decay('wd1', [8192, 4096], self.args.weight_decay['c3d_encoder']),
-				'wd2': _variable_with_weight_decay('wd2', [4096, 4096], self.args.weight_decay['c3d_encoder']),
-				# 'out': _variable_with_weight_decay('wout', [4096, 101], self.args.weight_decay['c3d_encoder'])
+				'wc1': _variable_with_weight_decay('wc1', [3, 3, 3, 3, 64], self.args['c3d_encoder']['weight_decay']),
+				'wc2': _variable_with_weight_decay('wc2', [3, 3, 3, 64, 128], self.args['c3d_encoder']['weight_decay']),
+				'wc3a': _variable_with_weight_decay('wc3a', [3, 3, 3, 128, 256], self.args['c3d_encoder']['weight_decay']),
+				'wc3b': _variable_with_weight_decay('wc3b', [3, 3, 3, 256, 256], self.args['c3d_encoder']['weight_decay']),
+				'wc4a': _variable_with_weight_decay('wc4a', [3, 3, 3, 256, 512], self.args['c3d_encoder']['weight_decay']),
+				'wc4b': _variable_with_weight_decay('wc4b', [3, 3, 3, 512, 512], self.args['c3d_encoder']['weight_decay']),
+				'wc5a': _variable_with_weight_decay('wc5a', [3, 3, 3, 512, 512], self.args['c3d_encoder']['weight_decay']),
+				'wc5b': _variable_with_weight_decay('wc5b', [3, 3, 3, 512, 512], self.args['c3d_encoder']['weight_decay']),
+				'wd1': _variable_with_weight_decay('wd1', [8192, 4096], self.args['c3d_encoder']['weight_decay']),
+				'wd2': _variable_with_weight_decay('wd2', [4096, 4096], self.args['c3d_encoder']['weight_decay']),
+				'out': _variable_with_weight_decay('wout', [4096, 101], self.args['c3d_encoder']['weight_decay'])
 				}
 			self.biases = {
 				'bc1': _variable_with_weight_decay('bc1', [64], 0.000),
@@ -118,18 +121,19 @@ class C3D_Encoder(object):
 				'bc5b': _variable_with_weight_decay('bc5b', [512], 0.000),
 				'bd1': _variable_with_weight_decay('bd1', [4096], 0.000),
 				'bd2': _variable_with_weight_decay('bd2', [4096], 0.000),
-				# 'out': _variable_with_weight_decay('bout', [101], 0.000),
+				'out': _variable_with_weight_decay('bout', [101], 0.000),
 			}
 
 
+
 	def optimize(self, loss):
-		self.opt = tf.train.AdamOptimizer(learning_rate=self.args.learning_rate['c3d_encoder'])
+		self.opt = tf.train.AdamOptimizer(learning_rate=self.args['c3d_encoder']['learning_rate'])
 		opt_op = self.opt.minimize(loss, var_list=tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='var_name'))
 		return opt_op
 
 
 	def variable_restore(self, sess):
-
 		model_filename = os.path.join("save", self.name)
+		print(model_filename)
 		if os.path.isfile(model_filename):
 			self.saver.restore(sess, model_filename)
