@@ -8,7 +8,7 @@ from carla import sensor
 from carla.client import make_carla_client, VehicleControl
 
 
-BUFFER_LIMIT = 25
+BUFFER_LIMIT = 200
 BATCH_SIZE = 8
 KEEP_CNT = 10000
 
@@ -99,6 +99,7 @@ class Carla_Wrapper(object):
             print('Start Memory Replay')
             self.update_cnt = 0
             self.memory_training()
+            print('Memory Replay Done')
 
         # self.red_buffer.append(red)
         # self.manual_buffer.append(manual)

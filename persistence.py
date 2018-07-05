@@ -138,8 +138,8 @@ class Machine(object):
 	def train(self, inputs, global_step):
 		self.sess.run(self.final_ops, feed_dict=self.place_holders.get_feed_dict_train(inputs))
 		print('Start Saving')
-		for i in self.variable_parts:
-			i.saver.save(self.sess, 'my-model', global_step=global_step)
+		# for i in self.variable_parts:
+		# 	i.saver.save(self.sess, 'my-model', global_step=global_step)
 		print('Saving Done.')
 
 
