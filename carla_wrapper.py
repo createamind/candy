@@ -8,9 +8,9 @@ from carla import sensor
 from carla.client import make_carla_client, VehicleControl
 from tqdm import tqdm
 
-BUFFER_LIMIT = 500
+BUFFER_LIMIT = 200
 BATCH_SIZE = 8
-KEEP_CNT = 3000
+KEEP_CNT = 1000
 
 class Carla_Wrapper(object):
 
@@ -67,13 +67,13 @@ class Carla_Wrapper(object):
         t3 = np.max(image_converter.to_rgb_array(_mini_view_image2), axis=2)
         return [t1, t2, t3]
 
-    def update_all(self, measurements, sensor_data, control, reward, saveornot):
+    def update_all(self, measurements, sensor_data, control, reward, saveornot, collision):
         sensor_data = self.process_sensor_data(sensor_data)
         obs = [sensor_data[0]]
         auxs = [sensor_data[1], sensor_data[2],\
-            measurements.player_measurements.forward_speed, \
-            measurements.player_measurements.collision_vehicles + measurements.player_measurements.collision_pedestrians + measurements.player_measurements.collision_other,\
-            measurements.player_measurements.intersection_otherlane + measurements.player_measurements.intersection_offroad]
+            abs(measurements.player_measurements.forward_speed) * 3.6 / 100, \
+            collision / 5000,\
+            measurements.player_measurements.intersection_offroad]
 
         control = self.analyze_control(control)
         reward = [reward]
@@ -81,19 +81,25 @@ class Carla_Wrapper(object):
         assert len(self.obs_buffer) == len(self.auxs_buffer) and len(self.auxs_buffer) == len(self.control_buffer)\
              and len(self.control_buffer) == len(self.reward_buffer)
 
-        tmp = 1
-        for i in range(2, 500):
-            tmp = tmp * 0.99
-            if i < len(self.reward_buffer):
-                self.reward_buffer[-i][0] += self.reward_buffer[-1][0] * tmp
-
         self.obs_buffer.append(obs)
         self.auxs_buffer.append(auxs)
         self.control_buffer.append(control)
         self.reward_buffer.append(reward)
 
         self.update_cnt += 1
-        if self.update_cnt > BUFFER_LIMIT:
+        if self.update_cnt >= BUFFER_LIMIT:
+
+            # Update BUFFER_LIMIT个
+            l = len(self.reward_buffer)
+            for j in range(l - BUFFER_LIMIT, l):
+                tmp = 1
+                for i in range(1, 100):
+                    tmp = tmp * 0.97
+                    if i + j < len(self.reward_buffer):
+                        self.reward_buffer[j][0] += self.reward_buffer[i + j][0] * tmp
+                    else:
+                        self.reward_buffer[j][0] += self.reward_buffer[-1][0] * tmp
+
             print('Start Memory Replay')
             self.update_cnt = 0
             self.memory_training(saveornot)
@@ -110,8 +116,7 @@ class Carla_Wrapper(object):
         fps = 10
         batch = []
         tmp_reward = np.array([i[0] for i in self.reward_buffer])
-        tmp_reward = (tmp_reward - np.mean(tmp_reward)) / np.std(tmp_reward)
-
+        tmp_reward = (tmp_reward - np.mean(tmp_reward))
         for i in range(5, l - (fps // 2)):
             t = self.obs_buffer[i-16:i]
             if len(t) < 16:
@@ -185,6 +190,6 @@ class Carla_Wrapper(object):
         elif len(t) < 15:
             t = [self.obs_buffer[0]] * (15 - len(t)) + t
 
-        control = self.machine.inference([[t + [obs]] for i in range(BATCH_SIZE)])
+        control = self.machine.inference([[t + [obs]] for _ in range(BATCH_SIZE)])
         control = self.decode_control(control)
         return control

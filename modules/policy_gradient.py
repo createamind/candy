@@ -11,9 +11,9 @@ class PG:
 
 	def inference(self):
 		with tf.variable_scope(self.name) as var_scope:
-			logits = tf.layers.dropout(inputs=self.x, rate=0.5)
+			logits = tf.layers.dropout(inputs=self.x, rate=0.2)
 			logits = tf.layers.dense(inputs=logits, units=self.hidden_size, activation=tf.nn.relu, kernel_regularizer=tf.contrib.layers.l2_regularizer(0.001))
-			logits = tf.layers.dropout(inputs=logits, rate=0.5)
+			logits = tf.layers.dropout(inputs=logits, rate=0.2)
 			self.outputs = tf.layers.dense(inputs=logits, units=self.output_size, kernel_regularizer=tf.contrib.layers.l2_regularizer(0.001))
 		self.saver = tf.train.Saver(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.name))
 		return self.outputs

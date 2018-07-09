@@ -1,6 +1,6 @@
 ---
 c3d_encoder:
-    learning_rate: 0.001
+    learning_rate: 0.0001
     weight_decay: 0.00001
 raw_image:
     learning_rate: 0.001
@@ -21,9 +21,6 @@ intersection:
     learning_rate: 0.001
     weight_decay: 0.00001
 policy:
-    learning_rate: 0.001
-    weight_decay: 0.00001
-value:
     learning_rate: 0.001
     weight_decay: 0.00001
 transition:

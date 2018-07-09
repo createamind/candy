@@ -77,8 +77,8 @@ class PlaceHolders(object):
         if typeofimage == 'raw':
             image = np.array(image).astype(float) / 255
             return image
-        else:
-            return image
+        elif typeofimage == 'depth':
+            image = np.array(image).astype(float) / 255
         return image
 
     def get_feed_dict_inference(self, inputs):

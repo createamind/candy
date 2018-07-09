@@ -36,7 +36,7 @@ import argparse
 import logging
 import random
 import time
-
+import datetime
 try:
     import pygame
     from pygame.locals import K_DOWN
@@ -180,8 +180,10 @@ class CarlaGame(object):
         self._agent_positions = None
         self.for_save = False
         self.should_display = True
-        self.manual = (random.randint(1,3) != 1)
+        random.seed(datetime.datetime.now())
+        self.manual = (random.randint(1,2) != 1)
         self.cnt = 0
+        self.history_collision = 0
 
         self.carla_wrapper = wrapper
 
@@ -234,6 +236,13 @@ class CarlaGame(object):
         self._lidar_measurement = sensor_data.get('Lidar32', None)
         # self._human_image = sensor_data.get('CameraForHuman', None)
 
+
+        collision = self.get_collision(measurements)
+
+        control, reward = self._get_keyboard_control(pygame.key.get_pressed())
+        reward, _ = self.calculate_reward(measurements, reward, collision)
+
+
         # Print measurements every second.
         if self._timer.elapsed_seconds_since_lap() > 1.0:
             if self._city_name is not None:
@@ -251,15 +260,13 @@ class CarlaGame(object):
                 self._print_player_measurements_map(
                     measurements.player_measurements,
                     map_position,
-                    lane_orientation)
+                    lane_orientation, reward)
             else:
                 self._print_player_measurements(measurements.player_measurements)
 
             # Plot position on the map as well.
 
             self._timer.lap()
-
-        control, reward = self._get_keyboard_control(pygame.key.get_pressed())
 
 
         # Set the player position
@@ -292,22 +299,29 @@ class CarlaGame(object):
             self.for_save = True
 
         self.client.send_control(control)
-        reward, _ = self.calculate_reward(measurements, reward)
-        self.for_save = self.carla_wrapper.update_all(measurements, sensor_data, control, reward, self.for_save)
+        self.for_save = self.carla_wrapper.update_all(measurements, sensor_data, control, reward, self.for_save, collision)
 
+    def get_collision(self, measurements):
+        new_collision = measurements.player_measurements.collision_vehicles + measurements.player_measurements.collision_pedestrians + measurements.player_measurements.collision_other
+        ans = new_collision - self.history_collision
+        self.history_collision = new_collision
+        return ans
 
-    def calculate_reward(self, measurements, reward):
+    
+    def calculate_reward(self, measurements, reward, collision):
         
-        speed = measurements.player_measurements.forward_speed * 3.6
+        speed = abs(measurements.player_measurements.forward_speed) * 3.6
 
-        collision = measurements.player_measurements.collision_vehicles + measurements.player_measurements.collision_pedestrians + measurements.player_measurements.collision_other
+        # collision = measurements.player_measurements.collision_vehicles + measurements.player_measurements.collision_pedestrians + measurements.player_measurements.collision_other
 
-        intersection = measurements.player_measurements.intersection_otherlane + measurements.player_measurements.intersection_offroad
+        # intersection = measurements.player_measurements.intersection_otherlane + measurements.player_measurements.intersection_offroad
+        
+        intersection = measurements.player_measurements.intersection_offroad
         
         # print('speed = ' + str(speed) + 'collision = ' + str(collision) + 'intersection = ' + str(intersection))
 
         if reward is None:
-            reward = (speed / 10 - collision / 10 - intersection * 5) / 100.0
+            reward = (speed - collision / 200 - intersection * 50) / 100.0
 
         return reward, [speed, collision, intersection]
         
@@ -351,19 +365,19 @@ class CarlaGame(object):
         if keys[K_1]:
             reward = -1
         if keys[K_2]:
-            reward = -0.1
+            reward = -0.5
         if keys[K_3]:
-            reward = -0.05
+            reward = -0.25
         if keys[K_4]:
-            reward = -0.02
+            reward = -0.1
         if keys[K_5]:
             reward = 0
         if keys[K_6]:
-            reward = 0.02
-        if keys[K_7]:
-            reward = 0.05
-        if keys[K_8]:
             reward = 0.1
+        if keys[K_7]:
+            reward = 0.25
+        if keys[K_8]:
+            reward = 0.5
         if keys[K_9]:
             reward = 1
 
@@ -373,12 +387,14 @@ class CarlaGame(object):
             self,
             player_measurements,
             map_position,
-            lane_orientation):
+            lane_orientation,
+            reward):
         message = 'Step {step} ({fps:.1f} FPS): '
         message += 'Map Position ({map_x:.1f},{map_y:.1f}) '
         message += 'Lane Orientation ({ori_x:.1f},{ori_y:.1f}) '
         message += '{speed:.2f} km/h, '
-        message += '{other_lane:.0f}% other lane, {offroad:.0f}% off-road'
+        message += '{other_lane:.0f}% other lane, {offroad:.0f}% off-road,'
+        message += '{reward:.2f} reward.'
         message = message.format(
             map_x=map_position[0],
             map_y=map_position[1],
@@ -388,7 +404,8 @@ class CarlaGame(object):
             fps=self._timer.ticks_per_second(),
             speed=player_measurements.forward_speed * 3.6,
             other_lane=100 * player_measurements.intersection_otherlane,
-            offroad=100 * player_measurements.intersection_offroad)
+            offroad=100 * player_measurements.intersection_offroad,
+            reward=reward)
         print_over_same_line(message)
 
     def _print_player_measurements(self, player_measurements):
