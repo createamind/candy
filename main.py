@@ -25,6 +25,7 @@ Use ARROWS or WASD keys for control.
     n            : set auto driving
     m            : set manual pilot
     t            : toggle display
+    v            : save model(in the next memory replay stage)
 
 STARTING in a moment...
 """
@@ -62,6 +63,7 @@ try:
     from pygame.locals import K_7
     from pygame.locals import K_8
     from pygame.locals import K_9
+    from pygame.locals import K_v
 
     
     
@@ -176,9 +178,10 @@ class CarlaGame(object):
         self._map_view = self._map.get_map(WINDOW_HEIGHT) if self._city_name is not None else None
         self._position = None
         self._agent_positions = None
-
+        self.for_save = False
         self.should_display = True
-        self.manual = True
+        self.manual = (random.randint(1,3) != 1)
+        self.cnt = 0
 
         self.carla_wrapper = wrapper
 
@@ -269,6 +272,8 @@ class CarlaGame(object):
 
 
         if control == "done":
+            control = measurements.player_measurements.autopilot_control
+            self.client.send_control(control)
             return
         elif control is None:
             self._on_new_episode()
@@ -281,9 +286,14 @@ class CarlaGame(object):
         else:
             control = self.carla_wrapper.get_control(sensor_data)
 
+        print(control)
+        self.cnt += 1
+        if self.cnt % 50 == 0:
+            self.for_save = True
+
         self.client.send_control(control)
         reward, _ = self.calculate_reward(measurements, reward)
-        self.carla_wrapper.update_all(measurements, sensor_data, control, reward)
+        self.for_save = self.carla_wrapper.update_all(measurements, sensor_data, control, reward, self.for_save)
 
 
     def calculate_reward(self, measurements, reward):
@@ -294,7 +304,7 @@ class CarlaGame(object):
 
         intersection = measurements.player_measurements.intersection_otherlane + measurements.player_measurements.intersection_offroad
         
-        print('speed = ' + str(speed) + 'collision = ' + str(collision) + 'intersection = ' + str(intersection))
+        # print('speed = ' + str(speed) + 'collision = ' + str(collision) + 'intersection = ' + str(intersection))
 
         if reward is None:
             reward = (speed / 10 - collision / 10 - intersection * 5) / 100.0
@@ -316,6 +326,9 @@ class CarlaGame(object):
             return 'done', None
         if keys[K_n]:
             self.manual = False
+            return 'done', None
+        if keys[K_v]:
+            self.for_save = True
             return 'done', None
         control = VehicleControl()
         if keys[K_LEFT] or keys[K_a]:
@@ -510,7 +523,7 @@ def main():
     while True:
         try:
 
-            with make_carla_client(args.host, args.port) as client:
+            with make_carla_client(args.host, args.port, timeout=1000) as client:
                 game = CarlaGame(client, args, wrapper)
                 game.execute()
                 break

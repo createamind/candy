@@ -44,7 +44,7 @@ class PlaceHolders(object):
    
    
     def get_feed_dict_train(self, inputs):
-        return {
+        my_dict =  {
             self.image_sequence: self._process_image_sequence([v[0] for v in inputs]),
             self.raw_image: self._process_image([v[1] for v in inputs], 'raw'),
             self.depth_image: self._process_image([v[2][0] for v in inputs], 'depth'),
@@ -59,6 +59,7 @@ class PlaceHolders(object):
 
             self.next_sequence: self._process_image_sequence([v[5] for v in inputs])
         }
+        return my_dict
 
 
     def _process_image_sequence(self, image_sequence):

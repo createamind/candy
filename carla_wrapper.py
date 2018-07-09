@@ -6,11 +6,11 @@ import yaml
 from carla import image_converter
 from carla import sensor
 from carla.client import make_carla_client, VehicleControl
+from tqdm import tqdm
 
-
-BUFFER_LIMIT = 200
+BUFFER_LIMIT = 500
 BATCH_SIZE = 8
-KEEP_CNT = 10000
+KEEP_CNT = 3000
 
 class Carla_Wrapper(object):
 
@@ -29,27 +29,26 @@ class Carla_Wrapper(object):
         brake = control.brake
         hand_brake = control.hand_brake
         reverse = control.reverse
-        print(steer, throttle, brake, hand_brake, reverse)
 
         b = 0
-        if steer < -0.5:
+        if steer < -0.2:
             b += 2
-        elif steer > 0.5:
+        elif steer > 0.2:
             b += 1
         b *= 3
 
-        if throttle > 0.5:
+        if throttle > 0.4:
             b += 2
-        if brake > 0.5:
+        if brake > 0.4:
             b += 1
 
         if reverse:
             b = 9
         
         if hand_brake:
-            if steer < -0.5:
+            if steer < -0.4:
                 b = 10
-            elif steer > 0.5:
+            elif steer > 0.4:
                 b = 11
             else:
                 b = 12
@@ -68,7 +67,7 @@ class Carla_Wrapper(object):
         t3 = np.max(image_converter.to_rgb_array(_mini_view_image2), axis=2)
         return [t1, t2, t3]
 
-    def update_all(self, measurements, sensor_data, control, reward):
+    def update_all(self, measurements, sensor_data, control, reward, saveornot):
         sensor_data = self.process_sensor_data(sensor_data)
         obs = [sensor_data[0]]
         auxs = [sensor_data[1], sensor_data[2],\
@@ -94,18 +93,19 @@ class Carla_Wrapper(object):
         self.reward_buffer.append(reward)
 
         self.update_cnt += 1
-        print(self.update_cnt)
         if self.update_cnt > BUFFER_LIMIT:
             print('Start Memory Replay')
             self.update_cnt = 0
-            self.memory_training()
+            self.memory_training(saveornot)
             print('Memory Replay Done')
+            return False
 
+        return saveornot
         # self.red_buffer.append(red)
         # self.manual_buffer.append(manual)
 
 
-    def memory_training(self):
+    def memory_training(self, saveornot):
         l = len(self.obs_buffer)
         fps = 10
         batch = []
@@ -124,11 +124,15 @@ class Carla_Wrapper(object):
             batch.append( [t, self.obs_buffer[i][0], self.auxs_buffer[i], self.control_buffer[i],\
                  tmp_reward[i], t2] )
 
-        for i in range(0, len(batch), BATCH_SIZE):
+        print("Memory Extraction Done.")
+        for i in tqdm(range(0, len(batch), BATCH_SIZE)):
             if i + BATCH_SIZE <= len(batch):
                 self.machine.train(batch[i:i + BATCH_SIZE], self.global_step)
                 self.global_step += 1
 
+        if saveornot:
+            self.machine.save()
+            
         if len(self.obs_buffer) > KEEP_CNT:
             self.obs_buffer = self.obs_buffer[1000:]
             self.auxs_buffer = self.auxs_buffer[1000:]
@@ -182,7 +186,5 @@ class Carla_Wrapper(object):
             t = [self.obs_buffer[0]] * (15 - len(t)) + t
 
         control = self.machine.inference([[t + [obs]] for i in range(BATCH_SIZE)])
-
         control = self.decode_control(control)
-
         return control

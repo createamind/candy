@@ -12,7 +12,7 @@ from modules.networks import MLP
 import tensorflow as tf
 import numpy as np
 import yaml
-
+import datetime
 import functools
 
 print = functools.partial(print, flush=True)
@@ -111,17 +111,22 @@ class Machine(object):
 		self.final_ops = tf.group(self.final_ops)
 
 		config = tf.ConfigProto(allow_soft_placement = True)
-		self.sess = tf.Session(config = config)
-		self.sess.run(tf.global_variables_initializer())
+		config.gpu_options.allow_growth = True
 
+
+
+		# Create summary writter
+
+		self.merged = tf.summary.merge_all()
+		self.sess = tf.Session(config = config)
+		self.writer = tf.summary.FileWriter('logs/' + datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'), self.sess.graph)
+
+		self.sess.run(tf.global_variables_initializer())
 		print('Restoring!')
 
 		for part in self.variable_parts:
 			part.variable_restore(self.sess)
 
-		# Create summary writter
-		merged = tf.summary.merge_all()
-		writer = tf.summary.FileWriter('./logs/candy', self.sess.graph)
 
 		print('Model Started!')
 
@@ -136,18 +141,20 @@ class Machine(object):
 
 
 	def train(self, inputs, global_step):
-		self.sess.run(self.final_ops, feed_dict=self.place_holders.get_feed_dict_train(inputs))
+		summary, _ = self.sess.run([self.merged, self.final_ops], feed_dict=self.place_holders.get_feed_dict_train(inputs))
+		self.writer.add_summary(summary, global_step)
+
+
+	def save(self):
 		print('Start Saving')
-		# for i in self.variable_parts:
-		# 	i.saver.save(self.sess, 'my-model', global_step=global_step)
+		for i in self.variable_parts:
+			i.saver.save(self.sess, './save/' + str(i.name), global_step=None)
 		print('Saving Done.')
 
 
 
 	def inference(self, inputs):
 		log_probs = self.sess.run(self.log_probs, feed_dict=self.place_holders.get_feed_dict_inference(inputs))
-		print(len(log_probs))
-
 		def softmax(x):
 			return np.exp(x) / np.sum(np.exp(x), axis=0)
 

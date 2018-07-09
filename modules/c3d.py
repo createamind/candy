@@ -134,6 +134,12 @@ class C3D_Encoder(object):
 
 	def variable_restore(self, sess):
 		model_filename = os.path.join("save", self.name)
-		print(model_filename)
+
+		if os.path.isfile(model_filename + '.meta'):
+			self.saver = tf.train.import_meta_graph(model_filename + '.meta')
+			self.saver.restore(sess, model_filename)
+			return
+
 		if os.path.isfile(model_filename):
 			self.saver.restore(sess, model_filename)
+			return
