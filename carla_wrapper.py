@@ -90,6 +90,7 @@ class Carla_Wrapper(object):
         if self.update_cnt >= BUFFER_LIMIT:
 
             # Update BUFFER_LIMIT个
+            last_one = self.reward_buffer[-1][0]
             l = len(self.reward_buffer)
             for j in range(l - BUFFER_LIMIT, l):
                 tmp = 1
@@ -98,7 +99,7 @@ class Carla_Wrapper(object):
                     if i + j < len(self.reward_buffer):
                         self.reward_buffer[j][0] += self.reward_buffer[i + j][0] * tmp
                     else:
-                        self.reward_buffer[j][0] += self.reward_buffer[-1][0] * tmp
+                        self.reward_buffer[j][0] += last_one * tmp
 
             print('Start Memory Replay')
             self.update_cnt = 0
@@ -116,7 +117,9 @@ class Carla_Wrapper(object):
         fps = 10
         batch = []
         tmp_reward = np.array([i[0] for i in self.reward_buffer])
-        tmp_reward = (tmp_reward - np.mean(tmp_reward))
+        print(tmp_reward)
+        tmp_reward = (tmp_reward - np.mean(tmp_reward)) / np.std(tmp_reward)
+        print(tmp_reward)
         for i in range(5, l - (fps // 2)):
             t = self.obs_buffer[i-16:i]
             if len(t) < 16:
@@ -139,10 +142,10 @@ class Carla_Wrapper(object):
             self.machine.save()
             
         if len(self.obs_buffer) > KEEP_CNT:
-            self.obs_buffer = self.obs_buffer[1000:]
-            self.auxs_buffer = self.auxs_buffer[1000:]
-            self.control_buffer = self.control_buffer[1000:]
-            self.reward_buffer = self.reward_buffer[1000:]
+            self.obs_buffer = self.obs_buffer[BUFFER_LIMIT:]
+            self.auxs_buffer = self.auxs_buffer[BUFFER_LIMIT:]
+            self.control_buffer = self.control_buffer[BUFFER_LIMIT:]
+            self.reward_buffer = self.reward_buffer[BUFFER_LIMIT:]
 
 
     def decode_control(self, cod):

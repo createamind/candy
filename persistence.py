@@ -41,7 +41,7 @@ class Machine(object):
 		# self.future_vae = VAE(args, self.c3d_future.inference())
 
 		z = self.c3d_encoder.inference()
-		# z = tf.Print(z, [z])
+		z = tf.Print(z, [z])
 		self.z = z
 
 		self.raw_decoder = ImageDecoder(args, 'raw_image', z, last=3)
@@ -156,10 +156,10 @@ class Machine(object):
 
 	def inference(self, inputs):
 		log_probs = self.sess.run(self.log_probs, feed_dict=self.place_holders.get_feed_dict_inference(inputs))
-		
+		print(log_probs[0])
 		def softmax(x):
 			return np.exp(x) / np.sum(np.exp(x), axis=0)
-
+		
 		log_probs = softmax(log_probs[0] / 100)
 		action = np.random.choice(range(log_probs.shape[0]), p=log_probs.ravel())  # 根据概率来选 action
 		return action
