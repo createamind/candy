@@ -117,9 +117,7 @@ class Carla_Wrapper(object):
         fps = 10
         batch = []
         tmp_reward = np.array([i[0] for i in self.reward_buffer])
-        print(tmp_reward)
         tmp_reward = (tmp_reward - np.mean(tmp_reward)) / np.std(tmp_reward)
-        print(tmp_reward)
         for i in range(5, l - (fps // 2)):
             t = self.obs_buffer[i-16:i]
             if len(t) < 16:

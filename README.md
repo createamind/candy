@@ -23,6 +23,7 @@ What is candy? A model with the structure: Hierarchical Observation -- Plan&Poli
 * Persistent training process and flexible architecture.
 
 ## Todo
+* Values tend to get big! Clip gradient or more regulization.
 * Change Policy Gradient to PPO(Proximal Policy Optimization).
 * Solve the failure of policy training.
 * Implement MCTS.

@@ -53,13 +53,13 @@ class Machine(object):
 		self.depth_decoder = ImageDecoder(args, 'depth', z, last=1)
 		self.depth_decoder_loss = MSELoss(args, 'depth', self.depth_decoder.inference(), inputs[2])
 
-		self.speed_prediction = MLP(args, 'speed', z, 1, 101)
+		self.speed_prediction = MLP(args, 'speed', z, 1, 300)
 		self.speed_loss = MSELoss(args, 'speed', self.speed_prediction.inference(), inputs[4])        
 
-		self.collision_prediction = MLP(args, 'collision', z, 1, 101)
+		self.collision_prediction = MLP(args, 'collision', z, 1, 300)
 		self.collision_loss = MSELoss(args, 'collision', self.collision_prediction.inference(), inputs[5])
 
-		self.intersection_prediction = MLP(args, 'intersection', z, 1, 101)
+		self.intersection_prediction = MLP(args, 'intersection', z, 1, 300)
 		self.intersection_loss = MSELoss(args, 'intersection', self.intersection_prediction.inference(), inputs[6])
 
 		self.policy = PG(args, 'policy', z, 13)
@@ -67,9 +67,9 @@ class Machine(object):
 		self.policy_loss = PGLoss(args, 'policy', inputs[7], inputs[8], self.log_probs)
 
 
-		# self.value = MLP(args, 'value', z, 1, 101)
+		# self.value = MLP(args, 'value', z, 1, 300)
 
-		self.transition = MLP(args, 'transition', tf.concat([z, self.log_probs],1), 101, 101)
+		self.transition = MLP(args, 'transition', tf.concat([z, self.log_probs],1), 300, 300)
 		self.transition_loss = MSELoss(args, 'transition', self.transition.inference(), self.c3d_future.inference())
 
 		# self.imitation_loss = CrossEntropyLoss(args, self.policy.inference(), inputs[7])
@@ -160,7 +160,9 @@ class Machine(object):
 		def softmax(x):
 			return np.exp(x) / np.sum(np.exp(x), axis=0)
 		
-		log_probs = softmax(log_probs[0] / 100)
+		log_probs = softmax(log_probs[0])
+		print(log_probs)
+
 		action = np.random.choice(range(log_probs.shape[0]), p=log_probs.ravel())  # 根据概率来选 action
 		return action
 		# z = self.sess.run(self.z, feed_dict=self.inputs.get_feed_dict_inference(inputs))

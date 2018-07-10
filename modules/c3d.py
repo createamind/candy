@@ -108,7 +108,7 @@ class C3D_Encoder(object):
 				'wc5b': _variable_with_weight_decay('wc5b', [3, 3, 3, 512, 512], self.args['c3d_encoder']['weight_decay']),
 				'wd1': _variable_with_weight_decay('wd1', [8192, 4096], self.args['c3d_encoder']['weight_decay']),
 				'wd2': _variable_with_weight_decay('wd2', [4096, 4096], self.args['c3d_encoder']['weight_decay']),
-				'out': _variable_with_weight_decay('wout', [4096, 101], self.args['c3d_encoder']['weight_decay'])
+				'out': _variable_with_weight_decay('wout', [4096, 300], self.args['c3d_encoder']['weight_decay'])
 				}
 			self.biases = {
 				'bc1': _variable_with_weight_decay('bc1', [64], 0.000),
@@ -121,7 +121,7 @@ class C3D_Encoder(object):
 				'bc5b': _variable_with_weight_decay('bc5b', [512], 0.000),
 				'bd1': _variable_with_weight_decay('bd1', [4096], 0.000),
 				'bd2': _variable_with_weight_decay('bd2', [4096], 0.000),
-				'out': _variable_with_weight_decay('bout', [101], 0.000),
+				'out': _variable_with_weight_decay('bout', [300], 0.000),
 			}
 
 
