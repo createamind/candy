@@ -11,10 +11,13 @@ We use VAE/GAN/Glow for world representation, and do RL, IL, Planning, and MCTS 
 Real:
 
 <img src="https://github.com/createamind/candy/blob/master/screenshots/real1.png" width="250"/>
+<img src="https://github.com/createamind/candy/blob/master/screenshots/real2.png" width="250"/>
+
 
 Reconstructed: (With hidden state of size 50, running for 1 hour)
 
 <img src="https://github.com/createamind/candy/blob/master/screenshots/reconstruct1.png" width="250"/>
+<img src="https://github.com/createamind/candy/blob/master/screenshots/reconstruct2.png" width="250"/>
 
 
 
