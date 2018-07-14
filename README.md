@@ -6,6 +6,18 @@ Candy: Self-driving in Carla Environment.
 What is candy? A model with the structure: Hierarchical Observation -- Plan&Policy -- Hierarchical Actions
 We use VAE/GAN/Glow for world representation, and do RL, IL, Planning, and MCTS upon it.
 
+
+## VAE Demo
+Real:
+
+<img src="https://github.com/createamind/candy/blob/master/screenshots/real1.png" width="250"/>
+
+Reconstructed: (With hidden state of size 50)
+
+<img src="https://github.com/createamind/candy/blob/master/screenshots/reconstruct1.png" width="250"/>
+
+
+
 ## Running Candy
 (This project is still working in progress.)
 * Download Carla-0.8.2 from [here][carlarelease].
@@ -33,16 +45,6 @@ We use VAE/GAN/Glow for world representation, and do RL, IL, Planning, and MCTS 
 * Attention for Representation explanation.
 * Implement MCTS.
 * Policy embedding? Curiosity, Attention, Memory ?
-
-## VAE Demo
-Real:
-
-<img src="https://github.com/createamind/candy/blob/master/screenshots/real1.png" width="250"/>
-
-Reconstructed: (With hidden state of size 50)
-
-<img src="https://github.com/createamind/candy/blob/master/screenshots/reconstruct1.png" width="250"/>
-
 
 ## Code Components
 * main.py: Main file. It Deals with Carla environment.
