@@ -39,7 +39,7 @@ Real:
 
 <img src="https://github.com/createamind/candy/blob/master/screenshots/real1.png" width="250"/>
 
-Reconstructed:
+Reconstructed: (With hidden state of size 50)
 
 <img src="https://github.com/createamind/candy/blob/master/screenshots/reconstruct1.png" width="250"/>
 
