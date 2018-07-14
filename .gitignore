@@ -3,6 +3,7 @@ save/
 refs/
 .vscode/
 *.swp
+.idea/
 __pycache__/
 *.py[cod]
 *$py.class
