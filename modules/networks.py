@@ -12,16 +12,22 @@ class MLP:
 	def inference(self):
 		with tf.variable_scope(self.name) as _:
 			logits = tf.layers.dropout(inputs=self.x, rate=0.2)
-			logits = tf.layers.dense(inputs=logits, units=self.hidden_size, activation=tf.nn.relu, kernel_regularizer=tf.contrib.layers.l2_regularizer(0.001))
+			logits = tf.layers.dense(inputs=logits, units=self.hidden_size, activation=tf.nn.relu, kernel_regularizer=tf.contrib.layers.l2_regularizer(self.args[self.name]['weight_decay']))
+			
+			logits = tf.nn.leaky_relu(logits) # Relu activation
+			logits = tf.clip_by_value(logits, -5, 5)
+
 			logits = tf.layers.dropout(inputs=logits, rate=0.2)
-			self.outputs = tf.layers.dense(inputs=logits, units=self.output_size, kernel_regularizer=tf.contrib.layers.l2_regularizer(0.001))
+			self.outputs = tf.layers.dense(inputs=logits, units=self.output_size, kernel_regularizer=tf.contrib.layers.l2_regularizer(self.args[self.name]['weight_decay']))
 		self.saver = tf.train.Saver(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.name))
 		return self.outputs
 
 
 	def optimize(self, loss):
 		self.opt = tf.train.AdamOptimizer(learning_rate=self.args[self.name]['learning_rate'])
-		opt_op = self.opt.minimize(loss, var_list=tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.name))
+		gvs = self.opt.compute_gradients(loss, var_list=tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.name))
+		capped_gvs = [(tf.clip_by_norm(grad, 5), var) for grad, var in gvs]
+		opt_op = self.opt.apply_gradients(capped_gvs)
 		return opt_op
 
 

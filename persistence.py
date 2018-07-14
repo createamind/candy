@@ -47,9 +47,16 @@ class Machine(object):
 		self.raw_decoder = ImageDecoder(args, 'raw_image', z, last=3)
 		self.raw_decoder_loss = MSELoss(args, 'raw_image', self.raw_decoder.inference(), inputs[1])
 
+		timage = tf.cast((inputs[1] + 1) * 127, tf.uint8)
+		tf.summary.image("raw_image_real", timage)
+
+
 		self.seg_decoder = ImageDecoder(args, 'seg', z, last=13)
 		self.seg_decoder_loss = CrossEntropyLoss(args, 'seg', self.seg_decoder.inference(), inputs[3])
-		
+
+
+
+
 		self.depth_decoder = ImageDecoder(args, 'depth', z, last=1)
 		self.depth_decoder_loss = MSELoss(args, 'depth', self.depth_decoder.inference(), inputs[2])
 
@@ -69,8 +76,8 @@ class Machine(object):
 
 		# self.value = MLP(args, 'value', z, 1, 300)
 
-		self.transition = MLP(args, 'transition', tf.concat([z, self.log_probs],1), 300, 300)
-		self.transition_loss = MSELoss(args, 'transition', self.transition.inference(), self.c3d_future.inference())
+		# self.transition = MLP(args, 'transition', tf.concat([z, self.log_probs],1), 300, 300)
+		# self.transition_loss = MSELoss(args, 'transition', self.transition.inference(), self.c3d_future.inference())
 
 		# self.imitation_loss = CrossEntropyLoss(args, self.policy.inference(), inputs[7])
 		# self.reward_loss = MESLoss(args, self.value.inference(), inputs[8])
@@ -96,13 +103,28 @@ class Machine(object):
 		# self.safety = ValueNetwork('safety')
 		# self.goal = ValueNetwork('goal')
 
-		self.variable_parts = [self.c3d_encoder, self.raw_decoder, self.seg_decoder, self.depth_decoder, \
-			self.speed_prediction, self.collision_prediction, self.intersection_prediction, self.policy, self.transition]
+		# self.variable_parts = [self.c3d_encoder, self.raw_decoder, self.seg_decoder, self.depth_decoder]
+		self.variable_parts = [self.c3d_encoder, self.policy]
+		# self.variable_parts = [self.c3d_encoder, self.raw_decoder]
 
-		self.loss_parts = self.collision_loss.inference() + self.intersection_loss.inference() + self.speed_loss.inference() + self.depth_decoder_loss.inference() + \
-			self.raw_decoder_loss.inference() + self.seg_decoder_loss.inference() + self.policy_loss.inference() + self.transition_loss.inference()
+		# self.variable_parts = [self.c3d_encoder, self.raw_decoder, self.seg_decoder, self.depth_decoder, \
+		# 	self.speed_prediction, self.collision_prediction, self.intersection_prediction, self.policy]
+
+		# self.loss_parts = self.collision_loss.inference() + self.intersection_loss.inference() + self.speed_loss.inference() + self.depth_decoder_loss.inference() + \
+		# 			self.raw_decoder_loss.inference() + self.seg_decoder_loss.inference() + self.policy_loss.inference() + self.transition_loss.inference()
+
+		# self.variable_parts = [self.c3d_encoder, self.raw_decoder, self.seg_decoder, self.depth_decoder, \
+		# 	self.speed_prediction, self.collision_prediction, self.intersection_prediction, self.policy]
+
+		# self.loss_parts = self.collision_loss.inference() + self.intersection_loss.inference() + self.speed_loss.inference() + self.depth_decoder_loss.inference() + \
+		# 			self.raw_decoder_loss.inference() + self.seg_decoder_loss.inference() + self.policy_loss.inference()
+
+		# self.loss_parts = self.depth_decoder_loss.inference() +self.raw_decoder_loss.inference() +self.seg_decoder_loss.inference()
+		self.loss_parts = self.policy_loss.inference()
+		# self.loss_parts = self.raw_decoder_loss.inference()
 				
-		weight_decay_loss = tf.get_collection('weightdecay_losses')
+		weight_decay_loss = tf.reduce_mean(tf.get_collection('weightdecay_losses'))
+		tf.summary.scalar('weight_decay_loss', weight_decay_loss)
 		total_loss = self.loss_parts + weight_decay_loss
 		tf.summary.scalar('total_loss', tf.reduce_mean(total_loss))
 

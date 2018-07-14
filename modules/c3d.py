@@ -17,33 +17,47 @@ def inference_c3d(_X, _dropout, batch_size, _weights, _biases):
 
 	# Convolution Layer
 	conv1 = conv3d('conv1', _X, _weights['wc1'], _biases['bc1'])
-	conv1 = tf.nn.relu(conv1, 'relu1')
+	conv1 = tf.nn.leaky_relu(conv1, name='relu1')
+	conv1 = tf.clip_by_value(conv1, -5, 5)
 	pool1 = max_pool('pool1', conv1, k=1)
 
 	# Convolution Layer
 	conv2 = conv3d('conv2', pool1, _weights['wc2'], _biases['bc2'])
-	conv2 = tf.nn.relu(conv2, 'relu2')
+	conv2 = tf.nn.leaky_relu(conv2, name='relu2')
+	conv2 = tf.clip_by_value(conv2, -5, 5)
 	pool2 = max_pool('pool2', conv2, k=2)
 
 	# Convolution Layer
 	conv3 = conv3d('conv3a', pool2, _weights['wc3a'], _biases['bc3a'])
-	conv3 = tf.nn.relu(conv3, 'relu3a')
+	conv3 = tf.nn.leaky_relu(conv3, name='relu3a')
+	conv3 = tf.clip_by_value(conv3, -5, 5)
+
 	conv3 = conv3d('conv3b', conv3, _weights['wc3b'], _biases['bc3b'])
-	conv3 = tf.nn.relu(conv3, 'relu3b')
+	conv3 = tf.nn.leaky_relu(conv3, name='relu3b')
+	conv3 = tf.clip_by_value(conv3, -5, 5)
 	pool3 = max_pool('pool3', conv3, k=2)
 
 	# Convolution Layer
 	conv4 = conv3d('conv4a', pool3, _weights['wc4a'], _biases['bc4a'])
-	conv4 = tf.nn.relu(conv4, 'relu4a')
+	conv4 = tf.nn.leaky_relu(conv4, name='relu4a')
+	conv4 = tf.clip_by_value(conv4, -5, 5)
+
 	conv4 = conv3d('conv4b', conv4, _weights['wc4b'], _biases['bc4b'])
-	conv4 = tf.nn.relu(conv4, 'relu4b')
+	conv4 = tf.nn.leaky_relu(conv4, name='relu4b')
+	conv4 = tf.clip_by_value(conv4, -5, 5)
+
+
 	pool4 = max_pool('pool4', conv4, k=2)
 
 	# Convolution Layer
 	conv5 = conv3d('conv5a', pool4, _weights['wc5a'], _biases['bc5a'])
-	conv5 = tf.nn.relu(conv5, 'relu5a')
+	conv5 = tf.nn.leaky_relu(conv5, name='relu5a')
+	conv5 = tf.clip_by_value(conv5, -5, 5)
+
 	conv5 = conv3d('conv5b', conv5, _weights['wc5b'], _biases['bc5b'])
-	conv5 = tf.nn.relu(conv5, 'relu5b')
+	conv5 = tf.nn.leaky_relu(conv5, name='relu5b')
+	conv5 = tf.clip_by_value(conv5, -5, 5)
+
 	pool5 = max_pool('pool5', conv5, k=2)
 
 	# Fully connected layer
@@ -51,10 +65,13 @@ def inference_c3d(_X, _dropout, batch_size, _weights, _biases):
 	dense1 = tf.reshape(pool5, [batch_size, _weights['wd1'].get_shape().as_list()[0]]) # Reshape conv3 output to fit dense layer input
 	dense1 = tf.matmul(dense1, _weights['wd1']) + _biases['bd1']
 
-	dense1 = tf.nn.relu(dense1, name='fc1') # Relu activation
+	dense1 = tf.nn.leaky_relu(dense1, name='fc1') # Relu activation
+	dense1 = tf.clip_by_value(dense1, -5, 5)
 	dense1 = tf.nn.dropout(dense1, _dropout)
 
-	dense2 = tf.nn.relu(tf.matmul(dense1, _weights['wd2']) + _biases['bd2'], name='fc2') # Relu activation
+	dense2 = tf.nn.leaky_relu(tf.matmul(dense1, _weights['wd2']) + _biases['bd2'], name='fc2') # Relu activation
+	dense2 = tf.clip_by_value(dense2, -5, 5)
+
 	dense2 = tf.nn.dropout(dense2, _dropout)
 
 	# Output: class prediction
@@ -72,7 +89,7 @@ def _variable_on_cpu(name, shape, initializer):
 def _variable_with_weight_decay(name, shape, wd):
 	var = _variable_on_cpu(name, shape, tf.contrib.layers.xavier_initializer())
 	if wd is not None:
-		weight_decay = tf.nn.l2_loss(var)*wd
+		weight_decay = tf.nn.l2_loss(var) * wd
 		tf.add_to_collection('weightdecay_losses', weight_decay)
 	return var
 
@@ -126,9 +143,20 @@ class C3D_Encoder(object):
 
 
 
+	# def optimize(self, loss):
+	# 	self.opt = tf.train.AdamOptimizer(learning_rate=self.args['c3d_encoder']['learning_rate'])
+	# 	opt_op = self.opt.minimize(loss, var_list=tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='var_name'))
+	# 	return opt_op
+
+
 	def optimize(self, loss):
-		self.opt = tf.train.AdamOptimizer(learning_rate=self.args['c3d_encoder']['learning_rate'])
-		opt_op = self.opt.minimize(loss, var_list=tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='var_name'))
+		self.opt = tf.train.AdamOptimizer(learning_rate=self.args[self.name]['learning_rate'])
+
+		gvs = self.opt.compute_gradients(loss, var_list=tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='var_name'))
+		capped_gvs = [(tf.clip_by_norm(grad, 5), var) for grad, var in gvs]
+		opt_op = self.opt.apply_gradients(capped_gvs)
+
+		# opt_op = self.opt.minimize(loss, var_list=tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='var_name'))
 		return opt_op
 
 

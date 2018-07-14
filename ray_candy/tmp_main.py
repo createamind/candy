@@ -90,53 +90,10 @@ WINDOW_HEIGHT = 500
 MINI_WINDOW_WIDTH = 200
 MINI_WINDOW_HEIGHT = 200
 
+STEP_LIMIT = 200
+MAP_NAME = 'Town01'
 
-def make_carla_settings(args):
-    """Make a CarlaSettings object with the settings we need."""
-    settings = CarlaSettings()
-    settings.set(
-        SynchronousMode=True,
-        SendNonPlayerAgentsInfo=True,
-        NumberOfVehicles=15,
-        NumberOfPedestrians=30,
-        WeatherId=random.choice([1, 3, 7, 8, 14]),
-        QualityLevel=args.quality_level)
-    settings.randomize_seeds()
-    camera0 = sensor.Camera('CameraRGB')
-    camera0.set_image_size(112, 112)
-    camera0.set_position(2.0, 0.0, 1.4)
-    camera0.set_rotation(0.0, 0.0, 0.0)
-    settings.add_sensor(camera0)
-    camera1 = sensor.Camera('CameraDepth', PostProcessing='Depth')
-    camera1.set_image_size(112, 112)
-    camera1.set_position(2.0, 0.0, 1.4)
-    camera1.set_rotation(0.0, 0.0, 0.0)
-    settings.add_sensor(camera1)
-    camera2 = sensor.Camera('CameraSemSeg', PostProcessing='SemanticSegmentation')
-    camera2.set_image_size(112, 112)
-    camera2.set_position(2.0, 0.0, 1.4)
-    camera2.set_rotation(0.0, 0.0, 0.0)
-    settings.add_sensor(camera2)
 
-    camera3 = sensor.Camera('CameraForHuman')
-    camera3.set_image_size(WINDOW_WIDTH, WINDOW_HEIGHT)
-    camera3.set_position(2.0, 0.0, 1.4)
-    camera3.set_rotation(0.0, 0.0, 0.0)
-    settings.add_sensor(camera3)
-
-    if args.lidar:
-        lidar = sensor.Lidar('Lidar32')
-        lidar.set_position(0, 0, 2.5)
-        lidar.set_rotation(0, 0, 0)
-        lidar.set(
-            Channels=32,
-            Range=50,
-            PointsPerSecond=100000,
-            RotationFrequency=10,
-            UpperFovLimit=10,
-            LowerFovLimit=-30)
-        settings.add_sensor(lidar)
-    return settings
 
 
 class Timer(object):
@@ -160,9 +117,9 @@ class Timer(object):
 
 
 class CarlaGame(object):
-    def __init__(self, carla_client, args, wrapper):
+    def __init__(self, carla_client):
         self.client = carla_client
-        self._carla_settings = make_carla_settings(args)
+        self._carla_settings = self.make_carla_settings()
         self._timer = None
         self._display = None
         self._main_image = None
@@ -172,7 +129,7 @@ class CarlaGame(object):
         self._lidar_measurement = None
         self._map_view = None
         self._is_on_reverse = False
-        self._city_name = args.map_name
+        self._city_name = MAP_NAME
         self._map = CarlaMap(self._city_name, 0.1643, 50.0) if self._city_name is not None else None
         self._map_shape = self._map.map_image.shape if self._city_name is not None else None
         self._map_view = self._map.get_map(WINDOW_HEIGHT) if self._city_name is not None else None
@@ -182,24 +139,67 @@ class CarlaGame(object):
         self.should_display = True
         random.seed(datetime.datetime.now())
         self.manual = (random.randint(1,2) != 1)
-        self.cnt = 0
+        self.step = 0
         self.history_collision = 0
 
-        self.carla_wrapper = wrapper
+        self.prev_image = None
+        
 
-    def execute(self):
+    
+    def make_carla_settings(self):
+        """Make a CarlaSettings object with the settings we need."""
+        settings = CarlaSettings()
+        settings.set(
+            SynchronousMode=True,
+            SendNonPlayerAgentsInfo=True,
+            NumberOfVehicles=15,
+            NumberOfPedestrians=30,
+            WeatherId=random.choice([1, 3, 7, 8, 14]),
+            QualityLevel='Epic')
+
+        settings.randomize_seeds()
+        camera0 = sensor.Camera('CameraRGB')
+        camera0.set_image_size(80, 80)
+        camera0.set_position(2.0, 0.0, 1.4)
+        camera0.set_rotation(0.0, 0.0, 0.0)
+        settings.add_sensor(camera0)
+        camera1 = sensor.Camera('CameraDepth', PostProcessing='Depth')
+        camera1.set_image_size(80, 80)
+        camera1.set_position(2.0, 0.0, 1.4)
+        camera1.set_rotation(0.0, 0.0, 0.0)
+        settings.add_sensor(camera1)
+        camera2 = sensor.Camera('CameraSemSeg', PostProcessing='SemanticSegmentation')
+        camera2.set_image_size(80, 80)
+        camera2.set_position(2.0, 0.0, 1.4)
+        camera2.set_rotation(0.0, 0.0, 0.0)
+        settings.add_sensor(camera2)
+
+        camera3 = sensor.Camera('CameraForHuman')
+        camera3.set_image_size(WINDOW_WIDTH, WINDOW_HEIGHT)
+        camera3.set_position(2.0, 0.0, 1.4)
+        camera3.set_rotation(0.0, 0.0, 0.0)
+        settings.add_sensor(camera3)
+
+        # if args.lidar:
+        lidar = sensor.Lidar('Lidar32')
+        lidar.set_position(0, 0, 2.5)
+        lidar.set_rotation(0, 0, 0)
+        lidar.set(
+            Channels=32,
+            Range=50,
+            PointsPerSecond=100000,
+            RotationFrequency=10,
+            UpperFovLimit=10,
+            LowerFovLimit=-30)
+        settings.add_sensor(lidar)
+
+        return settings
+
+        
+    def reset(self):
         """Launch the PyGame."""
         pygame.init()
         self._initialize_game()
-        try:
-            while True:
-                for event in pygame.event.get():
-                    if event.type == pygame.QUIT:
-                        return
-                self._on_loop()
-                self._on_render()
-        finally:
-            pygame.quit()
 
     def _initialize_game(self):
         if self._city_name is not None:
@@ -225,17 +225,34 @@ class CarlaGame(object):
         self._timer = Timer()
         self._is_on_reverse = False
 
-    def _on_loop(self):
+    def get_obs(self):
+
         self._timer.tick()
 
         measurements, sensor_data = self.client.read_data()
 
-        self._main_image = sensor_data.get('CameraForHuman', None)
-        self._mini_view_image1 = sensor_data.get('CameraDepth', None)
-        self._mini_view_image2 = sensor_data.get('CameraSemSeg', None)
-        self._lidar_measurement = sensor_data.get('Lidar32', None)
-        # self._human_image = sensor_data.get('CameraForHuman', None)
+        self.auto_control = measurements.player_measurements.autopilot_control
 
+        self._main_image = sensor_data.get('CameraForHuman', None)
+
+
+        rgb_image = sensor_data.get('CameraRGB', None)
+        depth_image = sensor_data.get('CameraDepth', None)
+
+
+        rgb_image = image_converter.to_rgb_array(rgb_image)
+        rgb_image = (rgb_image.astype(np.float32) - 128) / 128
+        depth_image = (np.max(image_converter.depth_to_logarithmic_grayscale(depth_image), axis=2, keepdims=True) - 128) / 128
+        image = np.concatenate([rgb_image, depth_image], axis=2)
+
+
+        if self.prev_image is None:
+            self.prev_image = image
+
+        now_image = image
+        image = np.concatenate([self.prev_image, image], axis=2)
+
+        self.prev_image = now_image
 
         collision = self.get_collision(measurements)
 
@@ -268,7 +285,6 @@ class CarlaGame(object):
 
             self._timer.lap()
 
-
         # Set the player position
         if self._city_name is not None:
             self._position = self._map.convert_to_pixel([
@@ -276,30 +292,37 @@ class CarlaGame(object):
                 measurements.player_measurements.transform.location.y,
                 measurements.player_measurements.transform.location.z])
             self._agent_positions = measurements.non_player_agents
+        self.step += 1
+        done = False
+        if self.step > STEP_LIMIT:
+            done = True
+            self.step = 0
+            
+        return ((image, [measurements.player_measurements.forward_speed * 3.6 / 100]), reward, done)
 
+    def do_action(self, action):
 
+        print('=.' * 40)
+        print('do action!', action)
+
+        control, reward = self._get_keyboard_control(pygame.key.get_pressed())
         if control == "done":
-            control = measurements.player_measurements.autopilot_control
+            control = self.auto_control
             self.client.send_control(control)
             return
         elif control is None:
             self._on_new_episode()
             return
 
-
         if self.manual:
             if self._enable_autopilot:
-                control = measurements.player_measurements.autopilot_control
+                control = self.auto_control
         else:
-            control = self.carla_wrapper.get_control(sensor_data)
+            control = self.decode_control(action)
 
         print(control)
-        self.cnt += 1
-        if self.cnt % 50 == 0:
-            self.for_save = True
-
         self.client.send_control(control)
-        self.for_save = self.carla_wrapper.update_all(measurements, sensor_data, control, reward, self.for_save, collision)
+        return self.analyze_control(control)
 
     def get_collision(self, measurements):
         new_collision = measurements.player_measurements.collision_vehicles + measurements.player_measurements.collision_pedestrians + measurements.player_measurements.collision_other
@@ -307,7 +330,73 @@ class CarlaGame(object):
         self.history_collision = new_collision
         return ans
 
-    
+    def analyze_control(self, control):
+        steer = control.steer
+        throttle = control.throttle
+        brake = control.brake
+        hand_brake = control.hand_brake
+        reverse = control.reverse
+
+        b = 0
+        if steer < -0.2:
+            b += 2
+        elif steer > 0.2:
+            b += 1
+        b *= 3
+
+        if throttle > 0.4:
+            b += 2
+        if brake > 0.4:
+            b += 1
+
+        if reverse:
+            b = 9
+        
+        if hand_brake:
+            if steer < -0.4:
+                b = 10
+            elif steer > 0.4:
+                b = 11
+            else:
+                b = 12
+        
+        return b
+
+    def decode_control(self, cod):
+        control = VehicleControl()
+
+        control.steer = 0
+        control.throttle = 0
+        control.brake = 0
+        control.hand_brake = False
+        control.reverse = False
+
+
+        if cod > 9:
+            control.hand_brake = True
+            if cod == 10:
+                control.steer = -1
+            elif cod == 10:
+                control.steer = -1
+            return control
+
+        if cod == 9:
+            control.reverse = True
+            control.throttle = 1
+            return control
+
+        if cod % 3 == 1:
+            control.brake = 1
+        elif cod % 3 == 2:
+            control.throttle = 1
+        
+        if cod // 3 == 1:
+            control.steer = 1
+        elif cod // 3 == 2:
+            control.steer = -1
+        
+        return control
+
     def calculate_reward(self, measurements, reward, collision):
         
         speed = abs(measurements.player_measurements.forward_speed) * 3.6
@@ -420,7 +509,7 @@ class CarlaGame(object):
             offroad=100 * player_measurements.intersection_offroad)
         print_over_same_line(message)
 
-    def _on_render(self):
+    def display(self):
         if self.should_display == False:
             return
         gap_x = (WINDOW_WIDTH - 2 * MINI_WINDOW_WIDTH) / 3
@@ -486,73 +575,3 @@ class CarlaGame(object):
             self._display.blit(surface, (WINDOW_WIDTH, 0))
 
         pygame.display.flip()
-
-
-def main():
-    argparser = argparse.ArgumentParser(
-        description='CARLA Manual Control Client')
-    argparser.add_argument(
-        '-v', '--verbose',
-        action='store_true',
-        dest='debug',
-        help='print debug information')
-    argparser.add_argument(
-        '--host',
-        metavar='H',
-        default='localhost',
-        help='IP of the host server (default: localhost)')
-    argparser.add_argument(
-        '-p', '--port',
-        metavar='P',
-        default=2000,
-        type=int,
-        help='TCP port to listen to (default: 2000)')
-    argparser.add_argument(
-        '-a', '--autopilot',
-        action='store_true',
-        help='enable autopilot')
-    argparser.add_argument(
-        '-l', '--lidar',
-        action='store_true',
-        help='enable Lidar')
-    argparser.add_argument(
-        '-q', '--quality-level',
-        choices=['Low', 'Epic'],
-        type=lambda s: s.title(),
-        default='Epic',
-        help='graphics quality level, a lower level makes the simulation run considerably faster.')
-    argparser.add_argument(
-        '-m', '--map-name',
-        metavar='M',
-        default=None,
-        help='plot the map of the current city (needs to match active map in '
-             'server, options: Town01 or Town02)')
-    args = argparser.parse_args()
-
-    log_level = logging.DEBUG if args.debug else logging.INFO
-    logging.basicConfig(format='%(levelname)s: %(message)s', level=log_level)
-
-    logging.info('listening to server %s:%s', args.host, args.port)
-
-    print(__doc__)
-
-    wrapper = Carla_Wrapper()
-    while True:
-        try:
-
-            with make_carla_client(args.host, args.port, timeout=1000) as client:
-                game = CarlaGame(client, args, wrapper)
-                game.execute()
-                break
-
-        except TCPConnectionError as error:
-            logging.error(error)
-            time.sleep(1)
-
-
-if __name__ == '__main__':
-
-    try:
-        main()
-    except KeyboardInterrupt:
-        print('\nCancelled by user. Bye!')

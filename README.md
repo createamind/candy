@@ -23,14 +23,23 @@ What is candy? A model with the structure: Hierarchical Observation -- Plan&Poli
 * Persistent training process and flexible architecture.
 
 ## Todo
-* Values tend to get big! Clip gradient or more regulization.
-* Change Policy Gradient to PPO(Proximal Policy Optimization).
-* Solve the failure of policy training.
-* Implement MCTS.
+* Speed, Depth, Orientation as inputs.
+* collision when stop.
+* Solve training failure problem: Values tend to get big! Clip gradient or more regulization.
+* Ray: Change Policy Gradient to PPO(Proximal Policy Optimization), or DDPG.
 * Visualize parameter transition.
-* Policy embedding? Curiosity, Attention, Memory ?
-* Prioritied Replay
+* Ape-X: Prioritied Replay
 * Distributed
+* VAE, Glow.
+* Attention for Representation explanation.
+* Implement MCTS.
+* Policy embedding? Curiosity, Attention, Memory ?
+
+## Demos
+* Drifting
+* Fast learning
+* Map commands
+* Transfer learning
 
 
 ## Code Components

@@ -7,10 +7,16 @@ from carla import image_converter
 from carla import sensor
 from carla.client import make_carla_client, VehicleControl
 from tqdm import tqdm
+import msgpack
+import msgpack_numpy as m
+m.patch()
+
+import os
+
 
 BUFFER_LIMIT = 200
 BATCH_SIZE = 8
-KEEP_CNT = 1000
+KEEP_CNT = 200
 
 class Carla_Wrapper(object):
 
@@ -22,6 +28,7 @@ class Carla_Wrapper(object):
         self.machine = Machine()
         self.global_step = 0
         self.update_cnt = 0
+        self.pretrain()
 
     def analyze_control(self, control):
         steer = control.steer
@@ -72,7 +79,7 @@ class Carla_Wrapper(object):
         obs = [sensor_data[0]]
         auxs = [sensor_data[1], sensor_data[2],\
             abs(measurements.player_measurements.forward_speed) * 3.6 / 100, \
-            collision / 5000,\
+            collision / 20000,\
             measurements.player_measurements.intersection_offroad]
 
         control = self.analyze_control(control)
@@ -111,8 +118,16 @@ class Carla_Wrapper(object):
         # self.red_buffer.append(red)
         # self.manual_buffer.append(manual)
 
+    def pretrain(self):
+        if os.path.exists('obs/data'):
+            print('Start Pretraining!!')
+            with open('obs/data', 'rb') as fp:
+                self.obs_buffer, self.auxs_buffer, self.control_buffer, self.reward_buffer = msgpack.load(fp, encoding='utf-8', raw=False)
+            print('Pretraining length = ', len(self.obs_buffer))
+            self.memory_training(False, pretrain=True)
 
-    def memory_training(self, saveornot):
+        
+    def memory_training(self, saveornot, pretrain=False):
         l = len(self.obs_buffer)
         fps = 10
         batch = []
@@ -131,19 +146,38 @@ class Carla_Wrapper(object):
                  tmp_reward[i], t2] )
 
         print("Memory Extraction Done.")
-        for i in tqdm(range(0, len(batch), BATCH_SIZE)):
-            if i + BATCH_SIZE <= len(batch):
-                self.machine.train(batch[i:i + BATCH_SIZE], self.global_step)
-                self.global_step += 1
 
-        if saveornot:
-            self.machine.save()
+        for _ in range(2):
+            for i in tqdm(range(0, len(batch), BATCH_SIZE)):
+                if i + BATCH_SIZE <= len(batch):
+                    self.machine.train(batch[i:i + BATCH_SIZE], self.global_step)
+                    self.global_step += 1
+
+                
+
+        self.machine.save()
+
+        if pretrain:            
+            self.obs_buffer = []
+            self.auxs_buffer = []
+            self.control_buffer = []
+            self.reward_buffer = []
             
-        if len(self.obs_buffer) > KEEP_CNT:
-            self.obs_buffer = self.obs_buffer[BUFFER_LIMIT:]
-            self.auxs_buffer = self.auxs_buffer[BUFFER_LIMIT:]
-            self.control_buffer = self.control_buffer[BUFFER_LIMIT:]
-            self.reward_buffer = self.reward_buffer[BUFFER_LIMIT:]
+        if len(self.obs_buffer) > KEEP_CNT + BUFFER_LIMIT:
+        
+            if os.path.exists('obs/data'):
+                with open('obs/data', 'rb') as fp:
+                    obs, auxs, control, reward = msgpack.load(fp, encoding='utf-8', raw=False)
+            else:
+                obs, auxs, control, reward = [], [], [], []
+
+            with open('obs/data', 'wb') as fp:
+                msgpack.dump([obs + self.obs_buffer[:KEEP_CNT], auxs + self.auxs_buffer[:KEEP_CNT], control + self.control_buffer[:KEEP_CNT], reward + self.reward_buffer[:KEEP_CNT]], fp, use_bin_type=True)
+                
+            self.obs_buffer = self.obs_buffer[KEEP_CNT:]
+            self.auxs_buffer = self.auxs_buffer[KEEP_CNT:]
+            self.control_buffer = self.control_buffer[KEEP_CNT:]
+            self.reward_buffer = self.reward_buffer[KEEP_CNT:]
 
 
     def decode_control(self, cod):

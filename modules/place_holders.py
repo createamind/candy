@@ -6,14 +6,18 @@ class PlaceHolders(object):
         self.args = args
 
         self.image_sequence = tf.placeholder(tf.float32, shape=(args['batch_size'], 16, 112, 112, 3))
-
+        # self.image_sequence = tf.Print(self.image_sequence, [self.image_sequence])
         self.raw_image = tf.placeholder(tf.float32, shape=(args['batch_size'], 112, 112, 3))
+        # self.raw_image = tf.Print(self.raw_image, [self.raw_image])
 
         self.depth_image = tf.placeholder(tf.float32, shape=(args['batch_size'], 112, 112, 1))
+        # self.depth_image = tf.Print(self.depth_image, [self.depth_image])
 
         self.seg_image = tf.placeholder(tf.int32, shape=(args['batch_size'], 112, 112))
+        # self.seg_image = tf.Print(self.seg_image, [self.seg_image])
 
         self.speed = tf.placeholder(tf.float32, shape=(args['batch_size'], 1))
+        # self.speed = tf.Print(self.speed, [self.speed])
 
         self.collision = tf.placeholder(tf.float32, shape=(args['batch_size'], 1))
 
@@ -75,10 +79,10 @@ class PlaceHolders(object):
     def _process_image(self, image, typeofimage):
 
         if typeofimage == 'raw':
-            image = np.array(image).astype(float) / 255
+            image = np.array(image).astype(float) / 127 - 1
             return image
         elif typeofimage == 'depth':
-            image = np.array(image).astype(float) / 255
+            image = np.array(image).astype(float) / 127 - 1
         return image
 
     def get_feed_dict_inference(self, inputs):

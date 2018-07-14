@@ -9,7 +9,15 @@ class MSELoss:
 		self.label = label
 
 	def inference(self):
+		# self.label = tf.Print(self.label, [self.label])
+		# self.predict = tf.Print(self.predict, [self.predict])
+		# tf.Print(self.name, [self.name])
+		if self.name == 'raw_image':
+			tlabel = tf.cast((self.predict + 1) * 127, tf.int32)
+			tf.summary.image("raw_image", tlabel)
+
 		loss = tf.reduce_mean(tf.losses.mean_squared_error(self.label, self.predict))
+		
 		tf.summary.scalar(self.name + 'loss', loss)
 
 		return loss

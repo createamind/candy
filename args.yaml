@@ -1,31 +1,31 @@
 ---
 c3d_encoder:
-    learning_rate: 0.0001
-    weight_decay: 0.00001
+    learning_rate: 0.00000000000001
+    weight_decay: 0.00000000000001
 raw_image:
-    learning_rate: 0.001
-    weight_decay: 0.00001
+    learning_rate: 0.00000000000001
+    weight_decay: 0.00000000000001
 seg:
-    learning_rate: 0.001
-    weight_decay: 0.00001
+    learning_rate: 0.00000000000001
+    weight_decay: 0.00000000000001
 depth:
-    learning_rate: 0.001
-    weight_decay: 0.00001
+    learning_rate: 0.00000000000001
+    weight_decay: 0.00000000000001
 speed:
-    learning_rate: 0.001
-    weight_decay: 0.00001
+    learning_rate: 0.00001
+    weight_decay: 0.003
 collision:
-    learning_rate: 0.001
-    weight_decay: 0.00001
+    learning_rate: 0.00001
+    weight_decay: 0.003
 intersection:
-    learning_rate: 0.001
-    weight_decay: 0.00001
+    learning_rate: 0.00001
+    weight_decay: 0.003
 policy:
-    learning_rate: 0.001
-    weight_decay: 0.00001
+    learning_rate: 0.0003
+    weight_decay: 0.003
 transition:
-    learning_rate: 0.001
-    weight_decay: 0.00001
+    learning_rate: 0.00001
+    weight_decay: 0.003
 batch_size: 8
 
 name: Martin D'vloper
