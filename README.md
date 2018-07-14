@@ -1,7 +1,7 @@
 # Candy
 Candy: Self-driving in Carla Environment.
 
- ![image](https://github.com/createamind/candy/blob/master/screenshots/candy.png)
+<img src="https://github.com/createamind/candy/blob/master/screenshots/candy.png" width="500"/>
 
 What is candy? A model with the structure: Hierarchical Observation -- Plan&Policy -- Hierarchical Actions
 We use VAE/GAN/Glow for world representation, and do RL, IL, Planning, and MCTS upon it.
