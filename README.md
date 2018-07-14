@@ -36,10 +36,12 @@ We use VAE/GAN/Glow for world representation, and do RL, IL, Planning, and MCTS 
 
 ## VAE Demo
 Real:
-![image](https://github.com/createamind/candy/blob/master/screenshots/real1.png)
+
+![image](https://github.com/createamind/candy/blob/master/screenshots/real1.png | width=300)
 
 Reconstructed:
-![image](https://github.com/createamind/candy/blob/master/screenshots/reconstruct1.png)
+
+![image](https://github.com/createamind/candy/blob/master/screenshots/reconstruct1.png | width=300)
 
 
 
