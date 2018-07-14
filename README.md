@@ -4,6 +4,7 @@ Candy: Self-driving in Carla Environment.
  ![image](https://github.com/createamind/candy/blob/master/screenshots/candy.png)
 
 What is candy? A model with the structure: Hierarchical Observation -- Plan&Policy -- Hierarchical Actions
+We use VAE/GAN/Glow for world representation, and do RL, IL, Planning, and MCTS upon it.
 
 ## Running Candy
 (This project is still working in progress.)
@@ -16,7 +17,6 @@ What is candy? A model with the structure: Hierarchical Observation -- Plan&Poli
 
 
 ## Candy Features
-* Use C3D for observation abstraction.
 * Combining imitation learning and reinforcement learning.
 * Use MCTS for planning.
 * Plenty of auxiliary tasks for robust hidden representation.
@@ -25,21 +25,22 @@ What is candy? A model with the structure: Hierarchical Observation -- Plan&Poli
 ## Todo
 * Speed, Depth, Orientation as inputs.
 * collision when stop.
-* Solve training failure problem: Values tend to get big! Clip gradient or more regulization.
 * Ray: Change Policy Gradient to PPO(Proximal Policy Optimization), or DDPG.
 * Visualize parameter transition.
 * Ape-X: Prioritied Replay
 * Distributed
-* VAE, Glow.
+* Glow
 * Attention for Representation explanation.
 * Implement MCTS.
 * Policy embedding? Curiosity, Attention, Memory ?
 
-## Demos
-* Drifting
-* Fast learning
-* Map commands
-* Transfer learning
+## VAE Demo
+Real:
+![image](https://github.com/createamind/candy/blob/master/screenshots/real1.png)
+
+Reconstructed:
+![image](https://github.com/createamind/candy/blob/master/screenshots/reconstruct1.png)
+
 
 
 ## Code Components
