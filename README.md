@@ -5,7 +5,7 @@ Candy: Self-driving in Carla Environment.
 
 What is candy? A model with the structure: Hierarchical Observation -- Plan&Policy -- Hierarchical Actions
 
-We use VAE/GAN/Glow for world representation, and do RL, IL, Planning, and MCTS upon it.
+We use VAE/GAN/Glow for world representation, and do RL, IL, Planning, MCTS upon it.
 
 
 ## VAE Demo
