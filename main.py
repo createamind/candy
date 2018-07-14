@@ -103,17 +103,17 @@ def make_carla_settings(args):
         QualityLevel=args.quality_level)
     settings.randomize_seeds()
     camera0 = sensor.Camera('CameraRGB')
-    camera0.set_image_size(112, 112)
+    camera0.set_image_size(320, 320)
     camera0.set_position(2.0, 0.0, 1.4)
     camera0.set_rotation(0.0, 0.0, 0.0)
     settings.add_sensor(camera0)
     camera1 = sensor.Camera('CameraDepth', PostProcessing='Depth')
-    camera1.set_image_size(112, 112)
+    camera1.set_image_size(320, 320)
     camera1.set_position(2.0, 0.0, 1.4)
     camera1.set_rotation(0.0, 0.0, 0.0)
     settings.add_sensor(camera1)
     camera2 = sensor.Camera('CameraSemSeg', PostProcessing='SemanticSegmentation')
-    camera2.set_image_size(112, 112)
+    camera2.set_image_size(320, 320)
     camera2.set_position(2.0, 0.0, 1.4)
     camera2.set_rotation(0.0, 0.0, 0.0)
     settings.add_sensor(camera2)
@@ -181,7 +181,7 @@ class CarlaGame(object):
         self.for_save = False
         self.should_display = True
         random.seed(datetime.datetime.now())
-        self.manual = (random.randint(1,2) != 1)
+        self.manual = (random.randint(1,100) != 1)
         self.cnt = 0
         self.history_collision = 0
 
@@ -216,6 +216,8 @@ class CarlaGame(object):
 
     def _on_new_episode(self):
         self._carla_settings.randomize_seeds()
+        # self._carla_settings.set(WeatherId=0)
+
         self._carla_settings.randomize_weather()
         scene = self.client.load_settings(self._carla_settings)
         number_of_player_starts = len(scene.player_start_spots)

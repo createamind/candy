@@ -5,15 +5,15 @@ class PlaceHolders(object):
     def __init__(self, args):
         self.args = args
 
-        self.image_sequence = tf.placeholder(tf.float32, shape=(args['batch_size'], 16, 112, 112, 3))
+        # self.image_sequence = tf.placeholder(tf.float32, shape=(args['batch_size'], 16, 320, 320, 3))
         # self.image_sequence = tf.Print(self.image_sequence, [self.image_sequence])
-        self.raw_image = tf.placeholder(tf.float32, shape=(args['batch_size'], 112, 112, 3))
+        self.raw_image = tf.placeholder(tf.float32, shape=(args['batch_size'], 320, 320, 3))
         # self.raw_image = tf.Print(self.raw_image, [self.raw_image])
 
-        self.depth_image = tf.placeholder(tf.float32, shape=(args['batch_size'], 112, 112, 1))
+        self.depth_image = tf.placeholder(tf.float32, shape=(args['batch_size'], 320, 320, 1))
         # self.depth_image = tf.Print(self.depth_image, [self.depth_image])
 
-        self.seg_image = tf.placeholder(tf.int32, shape=(args['batch_size'], 112, 112))
+        self.seg_image = tf.placeholder(tf.int32, shape=(args['batch_size'], 320, 320))
         # self.seg_image = tf.Print(self.seg_image, [self.seg_image])
 
         self.speed = tf.placeholder(tf.float32, shape=(args['batch_size'], 1))
@@ -27,12 +27,14 @@ class PlaceHolders(object):
 
         self.reward = tf.placeholder(tf.float32, shape=(args['batch_size']))
 
-        self.next_sequence = tf.placeholder(tf.float32, shape=(args['batch_size'], 16, 112, 112, 3))
+        # self.next_sequence = tf.placeholder(tf.float32, shape=(args['batch_size'], 16, 320, 320, 3))
 
     def inference(self):
 
-        return [self.image_sequence, self.raw_image, self.depth_image, self.seg_image,\
-         self.speed, self.collision, self.intersection, self.control, self.reward, self.next_sequence]
+        return [None, self.raw_image, self.depth_image, self.seg_image,\
+         self.speed, self.collision, self.intersection, self.control, self.reward, None]
+        # return [self.image_sequence, self.raw_image, self.depth_image, self.seg_image,\
+        #  self.speed, self.collision, self.intersection, self.control, self.reward, self.next_sequence]
 
 
         # obs = [sensor_data.get('CameraRGB', None)]
@@ -49,7 +51,7 @@ class PlaceHolders(object):
    
     def get_feed_dict_train(self, inputs):
         my_dict =  {
-            self.image_sequence: self._process_image_sequence([v[0] for v in inputs]),
+            # self.image_sequence: self._process_image_sequence([v[0] for v in inputs]),
             self.raw_image: self._process_image([v[1] for v in inputs], 'raw'),
             self.depth_image: self._process_image([v[2][0] for v in inputs], 'depth'),
             self.seg_image: self._process_image([v[2][1] for v in inputs], 'seg'),
@@ -61,7 +63,7 @@ class PlaceHolders(object):
             self.control: [v[3] for v in inputs],
             self.reward: [v[4] for v in inputs],
 
-            self.next_sequence: self._process_image_sequence([v[5] for v in inputs])
+            # self.next_sequence: self._process_image_sequence([v[5] for v in inputs])
         }
         return my_dict
 
@@ -71,10 +73,10 @@ class PlaceHolders(object):
         # print(t[0])
         # print('-' * 40)
         # print(t[1])
-        return np.reshape(t, [len(image_sequence), 16, 112, 112, 3])
+        return np.reshape(t, [len(image_sequence), 16, 320, 320, 3])
         # May be not 16
         # [[[rgb],[rgb],[rgb],[rgb]], []]
-        # to (args['batch_size'], 16, 112, 112, 3)
+        # to (args['batch_size'], 16, 320, 320, 3)
 
     def _process_image(self, image, typeofimage):
 
@@ -87,6 +89,7 @@ class PlaceHolders(object):
 
     def get_feed_dict_inference(self, inputs):
         return {
-            self.image_sequence: self._process_image_sequence([v[0] for v in inputs]),
+            # self.image_sequence: self._process_image_sequence([v[0] for v in inputs]),
+            self.raw_image: self._process_image([v[1] for v in inputs], 'raw'),
         }
 

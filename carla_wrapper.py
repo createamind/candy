@@ -14,9 +14,10 @@ m.patch()
 import os
 
 
-BUFFER_LIMIT = 200
-BATCH_SIZE = 8
-KEEP_CNT = 200
+BUFFER_LIMIT = 258
+BATCH_SIZE = 128
+KEEP_CNT = 258
+TRAIN_EPOCH = 30
 
 class Carla_Wrapper(object):
 
@@ -99,6 +100,17 @@ class Carla_Wrapper(object):
             # Update BUFFER_LIMIT个
             last_one = self.reward_buffer[-1][0]
             l = len(self.reward_buffer)
+
+            if os.path.exists('obs/data'):
+                with open('obs/data', 'rb') as fp:
+                    obs, auxs, control, reward = msgpack.load(fp, encoding='utf-8', raw=False)
+            else:
+                obs, auxs, control, reward = [], [], [], []
+
+            with open('obs/data', 'wb') as fp:
+                msgpack.dump([obs + self.obs_buffer[l - BUFFER_LIMIT:l], auxs + self.auxs_buffer[l - BUFFER_LIMIT:l], control + self.control_buffer[l - BUFFER_LIMIT:l], reward + self.reward_buffer[l - BUFFER_LIMIT:l]], fp, use_bin_type=True)
+                
+
             for j in range(l - BUFFER_LIMIT, l):
                 tmp = 1
                 for i in range(1, 100):
@@ -133,22 +145,23 @@ class Carla_Wrapper(object):
         batch = []
         tmp_reward = np.array([i[0] for i in self.reward_buffer])
         tmp_reward = (tmp_reward - np.mean(tmp_reward)) / np.std(tmp_reward)
-        for i in range(5, l - (fps // 2)):
-            t = self.obs_buffer[i-16:i]
-            if len(t) < 16:
-                t = [self.obs_buffer[0]] * (16 - len(t)) + t
+        # for i in range(5, l - (fps // 2)):
+        for i in range(l):
+            # t = self.obs_buffer[i-16:i]
+            # if len(t) < 16:
+            #     t = [self.obs_buffer[0]] * (16 - len(t)) + t
 
-            t2 = self.obs_buffer[i - 16 + (fps // 2): i + (fps // 2)]
-            if len(t2) < 16:
-                t2 = [self.obs_buffer[0]] * (16 - len(t2)) + t2
+            # t2 = self.obs_buffer[i - 16 + (fps // 2): i + (fps // 2)]
+            # if len(t2) < 16:
+            #     t2 = [self.obs_buffer[0]] * (16 - len(t2)) + t2
 
-            batch.append( [t, self.obs_buffer[i][0], self.auxs_buffer[i], self.control_buffer[i],\
-                 tmp_reward[i], t2] )
+            batch.append( [None, self.obs_buffer[i][0], self.auxs_buffer[i], self.control_buffer[i],\
+                 tmp_reward[i], None] )
 
         print("Memory Extraction Done.")
 
-        for _ in range(2):
-            for i in tqdm(range(0, len(batch), BATCH_SIZE)):
+        for _ in tqdm(range(TRAIN_EPOCH)):
+            for i in range(0, len(batch), BATCH_SIZE):
                 if i + BATCH_SIZE <= len(batch):
                     self.machine.train(batch[i:i + BATCH_SIZE], self.global_step)
                     self.global_step += 1
@@ -165,15 +178,6 @@ class Carla_Wrapper(object):
             
         if len(self.obs_buffer) > KEEP_CNT + BUFFER_LIMIT:
         
-            if os.path.exists('obs/data'):
-                with open('obs/data', 'rb') as fp:
-                    obs, auxs, control, reward = msgpack.load(fp, encoding='utf-8', raw=False)
-            else:
-                obs, auxs, control, reward = [], [], [], []
-
-            with open('obs/data', 'wb') as fp:
-                msgpack.dump([obs + self.obs_buffer[:KEEP_CNT], auxs + self.auxs_buffer[:KEEP_CNT], control + self.control_buffer[:KEEP_CNT], reward + self.reward_buffer[:KEEP_CNT]], fp, use_bin_type=True)
-                
             self.obs_buffer = self.obs_buffer[KEEP_CNT:]
             self.auxs_buffer = self.auxs_buffer[KEEP_CNT:]
             self.control_buffer = self.control_buffer[KEEP_CNT:]
@@ -219,12 +223,13 @@ class Carla_Wrapper(object):
         sensor_data = self.process_sensor_data(sensor_data)
         obs = [sensor_data[0]]
 
-        t = self.obs_buffer[-15:]
-        if len(t) == 0:
-            t = [obs] * 15
-        elif len(t) < 15:
-            t = [self.obs_buffer[0]] * (15 - len(t)) + t
+        # t = self.obs_buffer[-15:]
+        # if len(t) == 0:
+        #     t = [obs] * 15
+        # elif len(t) < 15:
+        #     t = [self.obs_buffer[0]] * (15 - len(t)) + t
 
-        control = self.machine.inference([[t + [obs]] for _ in range(BATCH_SIZE)])
+        control = self.machine.inference([ [None, obs[0]] for _ in range(BATCH_SIZE)])
+        # control = self.machine.inference([ [t + [obs], obs[0]] for _ in range(BATCH_SIZE)])
         control = self.decode_control(control)
         return control

@@ -9,6 +9,8 @@ from modules.losses import MSELoss, CrossEntropyLoss
 
 from modules.networks import MLP
 
+from modules.vae import VAE, VAELoss
+
 import tensorflow as tf
 import numpy as np
 import yaml
@@ -25,7 +27,7 @@ class Machine(object):
 
 		args = self.get_args()
 		self.args = args
-		self.args['crop_size'] = 112
+		self.args['crop_size'] = 320
 		self.args['num_frames_per_clip'] = 16
 		
 		#Building Graph
@@ -34,40 +36,38 @@ class Machine(object):
 		inputs = self.place_holders.inference()
 		#[self.image_sequence, self.raw_image, self.depth_image, self.seg_image, self.speed, self.collision, self.intersection, self.control, self.reward, self.transition]
 
-		self.c3d_encoder = C3D_Encoder(args,'c3d_encoder', inputs[0])
-		self.c3d_future = C3D_Encoder(args,'c3d_encoder', inputs[9], reuse=True)
+		# self.c3d_encoder = C3D_Encoder(args,'c3d_encoder', inputs[0])
+		# self.c3d_future = C3D_Encoder(args,'c3d_encoder', inputs[9], reuse=True)
 
-		# self.vae = VAE(args, self.c3d_encoder.inference())
+		self.vae = VAE(args, 'vae', inputs[1])
 		# self.future_vae = VAE(args, self.c3d_future.inference())
 
-		z = self.c3d_encoder.inference()
+		recon_x, z, logsigma = self.vae.inference()
 		z = tf.Print(z, [z])
 		self.z = z
-
-		self.raw_decoder = ImageDecoder(args, 'raw_image', z, last=3)
-		self.raw_decoder_loss = MSELoss(args, 'raw_image', self.raw_decoder.inference(), inputs[1])
-
-		timage = tf.cast((inputs[1] + 1) * 127, tf.uint8)
-		tf.summary.image("raw_image_real", timage)
+		self.vae_loss = VAELoss(args, 'vae', recon_x, inputs[1], z, logsigma)
 
 
-		self.seg_decoder = ImageDecoder(args, 'seg', z, last=13)
-		self.seg_decoder_loss = CrossEntropyLoss(args, 'seg', self.seg_decoder.inference(), inputs[3])
+		# z = self.c3d_encoder.inference()
 
 
+		# self.raw_decoder = ImageDecoder(args, 'raw_image', z, last=3)
+		# self.raw_decoder_loss = MSELoss(args, 'raw_image', self.raw_decoder.inference(), inputs[1])
 
+		# self.seg_decoder = ImageDecoder(args, 'seg', z, last=13)
+		# self.seg_decoder_loss = CrossEntropyLoss(args, 'seg', self.seg_decoder.inference(), inputs[3])
 
-		self.depth_decoder = ImageDecoder(args, 'depth', z, last=1)
-		self.depth_decoder_loss = MSELoss(args, 'depth', self.depth_decoder.inference(), inputs[2])
+		# self.depth_decoder = ImageDecoder(args, 'depth', z, last=1)
+		# self.depth_decoder_loss = MSELoss(args, 'depth', self.depth_decoder.inference(), inputs[2])
 
-		self.speed_prediction = MLP(args, 'speed', z, 1, 300)
-		self.speed_loss = MSELoss(args, 'speed', self.speed_prediction.inference(), inputs[4])        
+		# self.speed_prediction = MLP(args, 'speed', z, 1, 300)
+		# self.speed_loss = MSELoss(args, 'speed', self.speed_prediction.inference(), inputs[4])        
 
-		self.collision_prediction = MLP(args, 'collision', z, 1, 300)
-		self.collision_loss = MSELoss(args, 'collision', self.collision_prediction.inference(), inputs[5])
+		# self.collision_prediction = MLP(args, 'collision', z, 1, 300)
+		# self.collision_loss = MSELoss(args, 'collision', self.collision_prediction.inference(), inputs[5])
 
-		self.intersection_prediction = MLP(args, 'intersection', z, 1, 300)
-		self.intersection_loss = MSELoss(args, 'intersection', self.intersection_prediction.inference(), inputs[6])
+		# self.intersection_prediction = MLP(args, 'intersection', z, 1, 300)
+		# self.intersection_loss = MSELoss(args, 'intersection', self.intersection_prediction.inference(), inputs[6])
 
 		self.policy = PG(args, 'policy', z, 13)
 		self.log_probs = self.policy.inference()
@@ -104,7 +104,7 @@ class Machine(object):
 		# self.goal = ValueNetwork('goal')
 
 		# self.variable_parts = [self.c3d_encoder, self.raw_decoder, self.seg_decoder, self.depth_decoder]
-		self.variable_parts = [self.c3d_encoder, self.policy]
+		self.variable_parts = [self.vae]
 		# self.variable_parts = [self.c3d_encoder, self.raw_decoder]
 
 		# self.variable_parts = [self.c3d_encoder, self.raw_decoder, self.seg_decoder, self.depth_decoder, \
@@ -120,12 +120,12 @@ class Machine(object):
 		# 			self.raw_decoder_loss.inference() + self.seg_decoder_loss.inference() + self.policy_loss.inference()
 
 		# self.loss_parts = self.depth_decoder_loss.inference() +self.raw_decoder_loss.inference() +self.seg_decoder_loss.inference()
-		self.loss_parts = self.policy_loss.inference()
+		self.loss_parts = self.vae_loss.inference()
 		# self.loss_parts = self.raw_decoder_loss.inference()
 				
-		weight_decay_loss = tf.reduce_mean(tf.get_collection('weightdecay_losses'))
-		tf.summary.scalar('weight_decay_loss', weight_decay_loss)
-		total_loss = self.loss_parts + weight_decay_loss
+		# weight_decay_loss = tf.reduce_mean(tf.get_collection('weightdecay_losses'))
+		# tf.summary.scalar('weight_decay_loss', weight_decay_loss)
+		total_loss = self.loss_parts
 		tf.summary.scalar('total_loss', tf.reduce_mean(total_loss))
 
 		self.final_ops = []
@@ -136,9 +136,6 @@ class Machine(object):
 		config = tf.ConfigProto(allow_soft_placement = True)
 		config.gpu_options.allow_growth = True
 
-
-
-		# Create summary writter
 
 		self.merged = tf.summary.merge_all()
 		self.sess = tf.Session(config = config)
