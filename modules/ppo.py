@@ -88,17 +88,24 @@ class Model(object):
         self.load = load
         tf.global_variables_initializer().run(session=sess) #pylint: disable=E1101
 
-class Runner(AbstractEnvRunner):
+class Runner:
 
     def __init__(self, *, env, model, nsteps, gamma, lam):
-        super().__init__(env=env, model=model, nsteps=nsteps)
+        self.env = env
+        self.model = model
+        nenv = env.num_envs
+        self.batch_ob_shape = (nenv*nsteps,) + env.observation_space.shape
+        self.obs = np.zeros((nenv,) + env.observation_space.shape, dtype=env.observation_space.dtype.name)
+        self.obs[:] = env.reset()
+        self.nsteps = nsteps
+        self.states = model.initial_state
+        self.dones = [False for _ in range(nenv)]
         self.lam = lam
         self.gamma = gamma
 
     def run(self):
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones, mb_neglogpacs = [],[],[],[],[],[]
         mb_states = self.states
-        epinfos = []
         for _ in range(self.nsteps):
             actions, values, self.states, neglogpacs = self.model.step(self.obs, self.states, self.dones)
             mb_obs.append(self.obs.copy())

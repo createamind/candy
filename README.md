@@ -28,7 +28,11 @@ Reconstructed: (With hidden state of size 50, running for 1 hour)
 (This project is still working in progress.)
 * Download Carla-0.8.2 from [here][carlarelease].
 * Start CarlaUE4 engine in server mode, using commands from [here][carlagithub].
-* Run `python main.py -m Town01 -l` (Specifying town number and enable lidar).
+* Install Carla PythonClient using `pip install ~/carla/PythonClient`.
+* Install required packages:
+    pip install numpy tensorflow msgpack msgpack-numpy pyyaml tqdm gym baselines
+* Start the program by running:
+    CUDA_VISIBLE_DEVICES=0 python main.py -m Town01 -l
 
 [carlagithub]: http://carla.readthedocs.io/en/latest/running_simulator_standalone/
 [carlarelease]: https://github.com/carla-simulator/carla/releases
@@ -44,14 +48,14 @@ Reconstructed: (With hidden state of size 50, running for 1 hour)
 * Depth as input
 * Prioritized replay
 * PPO
-* Speed, Depth, Orientation as inputs.
-* collision when stop.
-* Ray: Change Policy Gradient to PPO(Proximal Policy Optimization), or DDPG.
 * Visualize parameter transition.
 * Distributed.
-* Glow.
 * Attention for Representation explanation.
 * Implement MCTS.
+* Ray: Change Policy Gradient to PPO(Proximal Policy Optimization), or DDPG.
+* Glow.
+* Speed, Depth, Orientation as inputs.
+* Stop when collision.
 * Policy embedding? Curiosity, Attention, Memory ?
 
 ## Code Components
