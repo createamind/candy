@@ -28,7 +28,7 @@ class PlaceHolders(object):
         self.reward = tf.placeholder(tf.float32, shape=(args['batch_size']))
 
         # self.next_sequence = tf.placeholder(tf.float32, shape=(args['batch_size'], 16, 320, 320, 3))
-
+        
     def inference(self):
 
         return [None, self.raw_image, self.depth_image, self.seg_image,\

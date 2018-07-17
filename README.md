@@ -41,13 +41,15 @@ Reconstructed: (With hidden state of size 50, running for 1 hour)
 * Persistent training process and flexible architecture.
 
 ## Todo
+* Depth as input
+* Prioritized replay
+* PPO
 * Speed, Depth, Orientation as inputs.
 * collision when stop.
 * Ray: Change Policy Gradient to PPO(Proximal Policy Optimization), or DDPG.
 * Visualize parameter transition.
-* Ape-X: Prioritied Replay
-* Distributed
-* Glow
+* Distributed.
+* Glow.
 * Attention for Representation explanation.
 * Implement MCTS.
 * Policy embedding? Curiosity, Attention, Memory ?

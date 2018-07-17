@@ -43,7 +43,7 @@ class Machine(object):
 		# self.future_vae = VAE(args, self.c3d_future.inference())
 
 		recon_x, z, logsigma = self.vae.inference()
-		z = tf.Print(z, [z])
+		z = tf.Print(z, [z[0]], summarize=20)
 		self.z = z
 		self.vae_loss = VAELoss(args, 'vae', recon_x, inputs[1], z, logsigma)
 

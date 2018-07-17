@@ -17,7 +17,7 @@ import os
 BUFFER_LIMIT = 258
 BATCH_SIZE = 128
 KEEP_CNT = 258
-TRAIN_EPOCH = 30
+TRAIN_EPOCH = 100
 
 class Carla_Wrapper(object):
 
@@ -69,7 +69,6 @@ class Carla_Wrapper(object):
         _mini_view_image1 = sensor_data.get('CameraDepth', None)
         _mini_view_image2 = sensor_data.get('CameraSemSeg', None)
 
-
         t1 = image_converter.to_rgb_array(_main_image)
         t2 = np.max(image_converter.depth_to_logarithmic_grayscale(_mini_view_image1), axis=2, keepdims=True)
         t3 = np.max(image_converter.to_rgb_array(_mini_view_image2), axis=2)
@@ -101,14 +100,14 @@ class Carla_Wrapper(object):
             last_one = self.reward_buffer[-1][0]
             l = len(self.reward_buffer)
 
-            if os.path.exists('obs/data'):
-                with open('obs/data', 'rb') as fp:
-                    obs, auxs, control, reward = msgpack.load(fp, encoding='utf-8', raw=False)
-            else:
-                obs, auxs, control, reward = [], [], [], []
+            # if os.path.exists('obs/data'):
+            #     with open('obs/data', 'rb') as fp:
+            #         obs, auxs, control, reward = msgpack.load(fp, encoding='utf-8', raw=False)
+            # else:
+            #     obs, auxs, control, reward = [], [], [], []
 
-            with open('obs/data', 'wb') as fp:
-                msgpack.dump([obs + self.obs_buffer[l - BUFFER_LIMIT:l], auxs + self.auxs_buffer[l - BUFFER_LIMIT:l], control + self.control_buffer[l - BUFFER_LIMIT:l], reward + self.reward_buffer[l - BUFFER_LIMIT:l]], fp, use_bin_type=True)
+            # with open('obs/data', 'wb') as fp:
+            #     msgpack.dump([obs + self.obs_buffer[l - BUFFER_LIMIT:l], auxs + self.auxs_buffer[l - BUFFER_LIMIT:l], control + self.control_buffer[l - BUFFER_LIMIT:l], reward + self.reward_buffer[l - BUFFER_LIMIT:l]], fp, use_bin_type=True)
                 
 
             for j in range(l - BUFFER_LIMIT, l):
