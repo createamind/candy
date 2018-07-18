@@ -13,7 +13,6 @@ m.patch()
 
 import os
 
-
 BUFFER_LIMIT = 258
 BATCH_SIZE = 128
 KEEP_CNT = 258
@@ -21,15 +20,19 @@ TRAIN_EPOCH = 100
 
 class Carla_Wrapper(object):
 
-    def __init__(self):
-        self.obs_buffer = []
-        self.auxs_buffer = []
-        self.control_buffer = []
-        self.reward_buffer = []
+    def __init__(self, gamma=0.99, lam=0.95):
         self.machine = Machine()
         self.global_step = 0
-        self.update_cnt = 0
+
+        self.lam = lam
+        self.gamma = gamma
+        self.state = self.machine.initial_state
+
+        self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states = [],[],[],[],[],[],[]
+
+        self.last_frame = np.zeros([320,320,4])
         self.pretrain()
+
 
     def analyze_control(self, control):
         steer = control.steer
@@ -63,69 +66,111 @@ class Carla_Wrapper(object):
         
         return b
 
-
     def process_sensor_data(self, sensor_data):
         _main_image = sensor_data.get('CameraRGB', None)
         _mini_view_image1 = sensor_data.get('CameraDepth', None)
         _mini_view_image2 = sensor_data.get('CameraSemSeg', None)
 
-        t1 = image_converter.to_rgb_array(_main_image)
-        t2 = np.max(image_converter.depth_to_logarithmic_grayscale(_mini_view_image1), axis=2, keepdims=True)
+        t1 = np.array(image_converter.to_rgb_array(_main_image)).astype(np.float32) / 128 - 1
+        t2 = np.max(image_converter.depth_to_logarithmic_grayscale(_mini_view_image1), axis=2, keepdims=True) / 128 - 1
         t3 = np.max(image_converter.to_rgb_array(_mini_view_image2), axis=2)
         return [t1, t2, t3]
 
-    def update_all(self, measurements, sensor_data, control, reward, saveornot, collision):
-        sensor_data = self.process_sensor_data(sensor_data)
-        obs = [sensor_data[0]]
-        auxs = [sensor_data[1], sensor_data[2],\
-            abs(measurements.player_measurements.forward_speed) * 3.6 / 100, \
-            collision / 20000,\
-            measurements.player_measurements.intersection_offroad]
 
-        control = self.analyze_control(control)
-        reward = [reward]
+    def post_process(self):
+
+        obs, reward, action = self.pre_process(inputs)
+
+        #batch of steps to batch of rollouts
+        self.obs = np.asarray(self.obs, dtype=np.float32)
+        self.actions = np.asarray(self.actions, dtype=np.int32)
+        self.values = np.asarray(self.values, dtype=np.float32)
+        self.neglogpacs = np.asarray(self.neglogpacs, dtype=np.float32)
+        self.rewards = np.asarray(self.rewards, dtype=np.float32)
+        self.vaerecons = np.asarray(self.vaerecons, dtype=np.float32)
+        self.states = np.asarray(self.states, dtype=np.float32)
+
+        _, last_values, _, _, _ = self.machine.value(obs, self.state, action)
+
+        #discount/bootstrap off value fn
+        self.advs = np.zeros_like(self.rewards)
+
+        l = len(self.obs)
+        lastgaelam = 0
+        for t in reversed(range(l - BUFFER_LIMIT, l)):
+            if t == l - 1:
+                nextvalues = last_values
+            else:
+                nextvalues = self.values[t+1]
+            delta = self.rewards[t] + self.gamma * nextvalues - self.values[t]
+            self.advs[t] = lastgaelam = delta + self.gamma * self.lam * lastgaelam
+        for t in range(l - BUFFER_LIMIT, l):
+            self.rewards[t] = self.advs[t] + self.values[t]
+
+        if os.path.exists('obs/data'):
+            with open('obs/data', 'rb') as fp:
+                obs, actions, values, neglogpacs, rewards, vaerecons, states = msgpack.load(fp, encoding='utf-8', raw=False)
+        else:
+            obs, actions, values, neglogpacs, rewards, vaerecons, states = [], [], [], [], [], [], []
         
-        assert len(self.obs_buffer) == len(self.auxs_buffer) and len(self.auxs_buffer) == len(self.control_buffer)\
-             and len(self.control_buffer) == len(self.reward_buffer)
+        if len(obs) < 1500:
+            with open('obs/data', 'wb') as fp:
+                msgpack.dump([obs + self.obs[l - BUFFER_LIMIT:l], \
+                 actions + self.actions[l - BUFFER_LIMIT:l],\
+                 values + self.values[l - BUFFER_LIMIT:l],\
+                 neglogpacs + self.neglogpacs[l - BUFFER_LIMIT:l]],\
+                 rewards + self.rewards[l - BUFFER_LIMIT:l]],\
+                 vaerecons + self.vaerecons[l - BUFFER_LIMIT:l]],\
+                 states + self.states[l - BUFFER_LIMIT:l]],\
+                 fp, use_bin_type=True)
+            
+        print('Start Memory Replay')
+        self.memory_training()
+        print('Memory Replay Done')
 
-        self.obs_buffer.append(obs)
-        self.auxs_buffer.append(auxs)
-        self.control_buffer.append(control)
-        self.reward_buffer.append(reward)
 
-        self.update_cnt += 1
-        if self.update_cnt >= BUFFER_LIMIT:
+    self.pre_process(self, inputs):
+        measurements, sensor_data, control, reward, collision = inputs
+        sensor_data = self.process_sensor_data(sensor_data)
 
-            # Update BUFFER_LIMIT个
-            last_one = self.reward_buffer[-1][0]
-            l = len(self.reward_buffer)
+        nowframe = np.concatenate([sensor_data[0], sensor_data[1]], 2)]
+        obs = np.concatenate([self.last_frame, nowframe], 2)
+        self.last_frame = nowframe
 
-            # if os.path.exists('obs/data'):
-            #     with open('obs/data', 'rb') as fp:
-            #         obs, auxs, control, reward = msgpack.load(fp, encoding='utf-8', raw=False)
-            # else:
-            #     obs, auxs, control, reward = [], [], [], []
+        obs = (obs, measurements.player_measurements.forward_speed * 3.6 / 100)
 
-            # with open('obs/data', 'wb') as fp:
-            #     msgpack.dump([obs + self.obs_buffer[l - BUFFER_LIMIT:l], auxs + self.auxs_buffer[l - BUFFER_LIMIT:l], control + self.control_buffer[l - BUFFER_LIMIT:l], reward + self.reward_buffer[l - BUFFER_LIMIT:l]], fp, use_bin_type=True)
-                
+        action = self.analyze_control(control)
+        return obs, reward, action
+        
 
-            for j in range(l - BUFFER_LIMIT, l):
-                tmp = 1
-                for i in range(1, 100):
-                    tmp = tmp * 0.97
-                    if i + j < len(self.reward_buffer):
-                        self.reward_buffer[j][0] += self.reward_buffer[i + j][0] * tmp
-                    else:
-                        self.reward_buffer[j][0] += last_one * tmp
+    def update(self, inputs):
 
-            print('Start Memory Replay')
-            self.update_cnt = 0
-            self.memory_training(saveornot)
-            print('Memory Replay Done')
-            return False
+        obs, reward, action = self.pre_process(inputs)
 
-        return saveornot
+        # sensor_data = self.process_sensor_data(sensor_data)
+        # obs = [sensor_data[0]]
+        # auxs = [sensor_data[1], sensor_data[2],\
+        #     abs(measurements.player_measurements.forward_speed) * 3.6 / 100, \
+        #     collision / 20000,\
+        #     measurements.player_measurements.intersection_offroad]
+
+        # control = self.analyze_control(control)
+        # reward = [reward]
+        
+        # assert len(self.obs_buffer) == len(self.auxs_buffer) and len(self.auxs_buffer) == len(self.control_buffer)\
+        #      and len(self.control_buffer) == len(self.reward_buffer)
+
+        self.states.append(self.state)
+
+        _, value, self.state, neglogpacs, vaerecon = self.machine.value(obs, self.state, action)
+
+        self.obs.append(obs)
+        self.actions.append(action)
+        self.values.append(value)
+        self.neglogpacs.append(neglogpacs)
+        self.rewards.append(rewards)
+        self.vaerecons.append(vaerecon)
+
         # self.red_buffer.append(red)
         # self.manual_buffer.append(manual)
 
@@ -133,55 +178,47 @@ class Carla_Wrapper(object):
         if os.path.exists('obs/data'):
             print('Start Pretraining!!')
             with open('obs/data', 'rb') as fp:
-                self.obs_buffer, self.auxs_buffer, self.control_buffer, self.reward_buffer = msgpack.load(fp, encoding='utf-8', raw=False)
-            print('Pretraining length = ', len(self.obs_buffer))
-            self.memory_training(False, pretrain=True)
+                self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states = msgpack.load(fp, encoding='utf-8', raw=False)
+            print('Pretraining length = ', len(self.obs))
+            self.memory_training(pretrain=True)
 
+    def calculate_difficulty(self, reward, vaerecon):
+        return vaerecon
         
-    def memory_training(self, saveornot, pretrain=False):
-        l = len(self.obs_buffer)
-        fps = 10
+    def memory_training(self, pretrain=False):
+        l = len(self.obs)
         batch = []
-        tmp_reward = np.array([i[0] for i in self.reward_buffer])
-        tmp_reward = (tmp_reward - np.mean(tmp_reward)) / np.std(tmp_reward)
-        # for i in range(5, l - (fps // 2)):
+        difficulty = []
         for i in range(l):
-            # t = self.obs_buffer[i-16:i]
-            # if len(t) < 16:
-            #     t = [self.obs_buffer[0]] * (16 - len(t)) + t
+            batch.append([self.obs[i], self.actions[i], self.values[i], self.neglogpacs[i], self.rewards[i], self.vaerecons[i], self.states[i]])
+            difficulty = self.calculate_difficulty(self.rewards[i], self.vaerecons[i])
 
-            # t2 = self.obs_buffer[i - 16 + (fps // 2): i + (fps // 2)]
-            # if len(t2) < 16:
-            #     t2 = [self.obs_buffer[0]] * (16 - len(t2)) + t2
-
-            batch.append( [None, self.obs_buffer[i][0], self.auxs_buffer[i], self.control_buffer[i],\
-                 tmp_reward[i], None] )
+        difficulty = np.array(difficulty)
+        def softmax(x):
+			return np.exp(x) / np.sum(np.exp(x), axis=0)
+        difficulty = softmax(difficulty * 5)
+        print(difficulty)
 
         print("Memory Extraction Done.")
 
         for _ in tqdm(range(TRAIN_EPOCH)):
-            for i in range(0, len(batch), BATCH_SIZE):
-                if i + BATCH_SIZE <= len(batch):
-                    self.machine.train(batch[i:i + BATCH_SIZE], self.global_step)
-                    self.global_step += 1
-
-                
+            roll = np.random.multinomial(BATCH_SIZE, difficulty, size=1)
+            tbatch = []
+            for i in roll:
+                tbatch.append(batch[i])
+            self.machine.train([[t[0] for t in tbatch], [t[1] for t in tbatch], [t[2] for t in tbatch], [t[3] for t in tbatch], \
+                [t[4] for t in tbatch], [t[5] for t in tbatch], [t[6] for t in tbatch]], self.global_step)
+            self.global_step += 1
 
         self.machine.save()
 
-        if pretrain:            
-            self.obs_buffer = []
-            self.auxs_buffer = []
-            self.control_buffer = []
-            self.reward_buffer = []
-            
-        if len(self.obs_buffer) > KEEP_CNT + BUFFER_LIMIT:
-        
-            self.obs_buffer = self.obs_buffer[KEEP_CNT:]
-            self.auxs_buffer = self.auxs_buffer[KEEP_CNT:]
-            self.control_buffer = self.control_buffer[KEEP_CNT:]
-            self.reward_buffer = self.reward_buffer[KEEP_CNT:]
+        if pretrain:          
+            self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states = [],[],[],[],[],[],[]
 
+        if len(self.obs) > KEEP_CNT:
+            rem = len(self.obs) - KEEP_CNT
+            self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states = \
+                self.obs[rem:],self.actions[rem:],self.values[rem:],self.neglogpacs[rem:],self.rewards[rem:],self.vaerecons[rem:], self.states[rem:]
 
     def decode_control(self, cod):
         control = VehicleControl()
@@ -218,17 +255,8 @@ class Carla_Wrapper(object):
         
         return control
 
-    def get_control(self, sensor_data):
-        sensor_data = self.process_sensor_data(sensor_data)
-        obs = [sensor_data[0]]
-
-        # t = self.obs_buffer[-15:]
-        # if len(t) == 0:
-        #     t = [obs] * 15
-        # elif len(t) < 15:
-        #     t = [self.obs_buffer[0]] * (15 - len(t)) + t
-
-        control = self.machine.inference([ [None, obs[0]] for _ in range(BATCH_SIZE)])
-        # control = self.machine.inference([ [t + [obs], obs[0]] for _ in range(BATCH_SIZE)])
-        control = self.decode_control(control)
+    def get_control(self, inputs):
+        obs, reward, action = self.pre_process(inputs)
+        action, _, _, _, _ = self.machine.step(obs, self.state)
+        control = self.decode_control(action)
         return control

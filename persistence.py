@@ -11,6 +11,8 @@ from modules.networks import MLP
 
 from modules.vae import VAE, VAELoss
 
+from modules.ppo import PPO, LstmPolicy
+
 import tensorflow as tf
 import numpy as np
 import yaml
@@ -27,26 +29,27 @@ class Machine(object):
 
 		args = self.get_args()
 		self.args = args
-		self.args['crop_size'] = 320
-		self.args['num_frames_per_clip'] = 16
-		
-		#Building Graph
-		self.place_holders = PlaceHolders(args)
 
-		inputs = self.place_holders.inference()
+
+		#Building Graph
+        self.raw_image = tf.placeholder(tf.float32, shape=(args['batch_size'], 320, 320, 8))
+        self.speed = tf.placeholder(tf.float32, shape=(args['batch_size']))
+
 		#[self.image_sequence, self.raw_image, self.depth_image, self.seg_image, self.speed, self.collision, self.intersection, self.control, self.reward, self.transition]
 
 		# self.c3d_encoder = C3D_Encoder(args,'c3d_encoder', inputs[0])
 		# self.c3d_future = C3D_Encoder(args,'c3d_encoder', inputs[9], reuse=True)
 
-		self.vae = VAE(args, 'vae', inputs[1])
+		self.vae = VAE(args, 'vae', raw_image)
 		# self.future_vae = VAE(args, self.c3d_future.inference())
 
 		recon_x, z, logsigma = self.vae.inference()
+		z = tf.concat([z, self.speed], 1)
 		z = tf.Print(z, [z[0]], summarize=20)
 		self.z = z
-		self.vae_loss = VAELoss(args, 'vae', recon_x, inputs[1], z, logsigma)
+		self.vae_loss = VAELoss(args, 'vae', recon_x, raw_image, z, logsigma)
 
+		self.ppo = PPO(args, z=self.z, ent_coef=.01, vf_coef=0.5, max_grad_norm=0.5)
 
 		# z = self.c3d_encoder.inference()
 
@@ -69,10 +72,9 @@ class Machine(object):
 		# self.intersection_prediction = MLP(args, 'intersection', z, 1, 300)
 		# self.intersection_loss = MSELoss(args, 'intersection', self.intersection_prediction.inference(), inputs[6])
 
-		self.policy = PG(args, 'policy', z, 13)
-		self.log_probs = self.policy.inference()
-		self.policy_loss = PGLoss(args, 'policy', inputs[7], inputs[8], self.log_probs)
-
+		# self.policy = PG(args, 'policy', z, 13)
+		# self.log_probs = self.policy.inference()
+		# self.policy_loss = PGLoss(args, 'policy', inputs[7], inputs[8], self.log_probs)
 
 		# self.value = MLP(args, 'value', z, 1, 300)
 
@@ -104,7 +106,7 @@ class Machine(object):
 		# self.goal = ValueNetwork('goal')
 
 		# self.variable_parts = [self.c3d_encoder, self.raw_decoder, self.seg_decoder, self.depth_decoder]
-		self.variable_parts = [self.vae]
+		self.variable_parts = [self.vae, self.ppo]
 		# self.variable_parts = [self.c3d_encoder, self.raw_decoder]
 
 		# self.variable_parts = [self.c3d_encoder, self.raw_decoder, self.seg_decoder, self.depth_decoder, \
@@ -120,7 +122,8 @@ class Machine(object):
 		# 			self.raw_decoder_loss.inference() + self.seg_decoder_loss.inference() + self.policy_loss.inference()
 
 		# self.loss_parts = self.depth_decoder_loss.inference() +self.raw_decoder_loss.inference() +self.seg_decoder_loss.inference()
-		self.loss_parts = self.vae_loss.inference()
+		
+		self.loss_parts = self.vae_loss.inference() + self.ppo.loss
 		# self.loss_parts = self.raw_decoder_loss.inference()
 				
 		# weight_decay_loss = tf.reduce_mean(tf.get_collection('weightdecay_losses'))
@@ -141,12 +144,13 @@ class Machine(object):
 		self.sess = tf.Session(config = config)
 		self.writer = tf.summary.FileWriter('logs/' + datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'), self.sess.graph)
 
+
 		self.sess.run(tf.global_variables_initializer())
+
 		print('Restoring!')
 
 		for part in self.variable_parts:
 			part.variable_restore(self.sess)
-
 
 		print('Model Started!')
 
@@ -159,9 +163,59 @@ class Machine(object):
 				print(exc)
 		
 
+	def ppotrain(self, inputs, z):
+		obs, actions, values, neglogpacs, rewards, _, states = inputs
+		model.train(self.args['learning_rate'], 0.2, obs, returns, actions, values, neglogpacs, states)
+
+        # mblossvals = []
+
+		# assert nenvs % nminibatches == 0
+		# envsperbatch = nenvs // nminibatches
+		# envinds = np.arange(nenvs)
+		# flatinds = np.arange(nenvs * nsteps).reshape(nenvs, nsteps)
+		# envsperbatch = nbatch_train // nsteps
+		# for _ in range(noptepochs):
+		# 	np.random.shuffle(envinds)
+		# 	for start in range(0, nenvs, envsperbatch):
+		# 		end = start + envsperbatch
+		# 		mbenvinds = envinds[start:end]
+		# 		mbflatinds = flatinds[mbenvinds].ravel()
+		# 		slices = (arr[mbflatinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
+		# 		mbstates = states[mbenvinds]
+		# 		mblossvals.append(model.train(lrnow, cliprangenow, *slices, mbstates))
+
+	def step(obs, state):
+		mask = np.zeros(self.args['batch_size'])
+		td_map = {self.ppo.act_model.S:state, self.ppo.act_model.M:mask}
+		td_map[self.raw_image] = np.array(obs[0])
+		td_map[self.speed] = np.array(obs[1])
+
+		return sess.run([self.ppo.act_model.a0, self.ppo.act_model.v0, self.ppo.act_model.snew, self.ppo.act_model.neglogp0, self.vae_loss.recon], td_map)
+
+
+	def value(obs, states, action):
+		mask = np.zeros(self.args['batch_size'])
+		td_map = {self.ppo.act_model.S:state, self.ppo.act_model.M:mask, self.ppo.act_model.a_z: action}
+		td_map[self.raw_image] = np.array(obs[0])
+		td_map[self.speed] = np.array(obs[1])
+		return sess.run([self.ppo.act_model.action, self.ppo.act_model.v0, self.ppo.act_model.snew, self.ppo.act_model.neglogpz, self.vae_loss.recon], td_map)
 
 	def train(self, inputs, global_step):
+		obs, actions, values, neglogpacs, rewards, vaerecons, states = inputs
+
+		advs = returns - values
+		advs = (advs - advs.mean()) / (advs.std() + 1e-8)
+		td_map = {self.ppo.A:actions, self.ppo.ADV:advs, self.ppo.R:returns, self.ppo.OLDNEGLOGPAC:neglogpacs, self.ppo.OLDVPRED:values}
+
+		mask = np.zeros(self.args['batch_size'])
+		td_map[self.ppo.train_model.S] = states
+		td_map[self.ppo.train_model.M] = mask
+
+		td_map[self.raw_image] = np.array([ob[0] for ob in obs])
+		td_map[self.speed] = np.array([ob[1] for ob in obs])
+
 		summary, _ = self.sess.run([self.merged, self.final_ops], feed_dict=self.place_holders.get_feed_dict_train(inputs))
+		# self.ppotrain(self.place_holders.get_ppo_inputs(inputs), z)
 		self.writer.add_summary(summary, global_step)
 
 
@@ -169,23 +223,30 @@ class Machine(object):
 		print('Start Saving')
 		for i in self.variable_parts:
 			i.saver.save(self.sess, './save/' + str(i.name), global_step=None)
-		print('Saving Done.')
+=		print('Saving Done.')
 
 
 
-	def inference(self, inputs):
-		log_probs = self.sess.run(self.log_probs, feed_dict=self.place_holders.get_feed_dict_inference(inputs))
-		print(log_probs[0])
-		def softmax(x):
-			return np.exp(x) / np.sum(np.exp(x), axis=0)
+	# def inference(self, inputs):
+
+	# 	vaerecon, z = self.sess.run([self.vae_loss.recon, self.z], feed_dict=self.place_holders.get_feed_dict_inference(inputs))
+
+	# 	actions, values, states, neglogpacs = self.ppo.step(z, states)
+
+	# 	return actions, values, states, neglogpacs, vaerecon
+
+	# 	# log_probs = self.sess.run(self.log_probs, feed_dict=self.place_holders.get_feed_dict_inference(inputs))
+	# 	# print(log_probs[0])
+	# 	# def softmax(x):
+	# 	# 	return np.exp(x) / np.sum(np.exp(x), axis=0)
 		
-		log_probs = softmax(log_probs[0])
-		print(log_probs)
+	# 	# log_probs = softmax(log_probs[0])
+	# 	# print(log_probs)
 
-		action = np.random.choice(range(log_probs.shape[0]), p=log_probs.ravel())  # 根据概率来选 action
-		return action
-		# z = self.sess.run(self.z, feed_dict=self.inputs.get_feed_dict_inference(inputs))
+	# 	# action = np.random.choice(range(log_probs.shape[0]), p=log_probs.ravel())  # 根据概率来选 action
+	# 	# return action
+	# 	# z = self.sess.run(self.z, feed_dict=self.inputs.get_feed_dict_inference(inputs))
 
-		# self.mcts = MCTS(z, self.sess, self.policy_mcts, self.value_mcts, self.transition_mcts, self.z_mcts)
+	# 	# self.mcts = MCTS(z, self.sess, self.policy_mcts, self.value_mcts, self.transition_mcts, self.z_mcts)
 
-		# return self.mcts.get_action()
+	# 	# return self.mcts.get_action()

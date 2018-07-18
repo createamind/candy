@@ -51,6 +51,7 @@ Reconstructed: (With hidden state of size 50, running for 1 hour)
 * Visualize parameter transition.
 * Distributed.
 * Attention for Representation explanation.
+* Map data auxilary task, using part of the hidden state.
 * Implement MCTS.
 * Ray: Change Policy Gradient to PPO(Proximal Policy Optimization), or DDPG.
 * Glow.
