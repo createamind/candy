@@ -31,11 +31,11 @@ Reconstructed: (With hidden state of size 50, running for 1 hour)
 * Install Carla PythonClient using `pip install ~/carla/PythonClient`.
 * Install required packages:
 
-    pip install numpy tensorflow-gpu msgpack msgpack-numpy pyyaml tqdm gym baselines
+        pip install numpy tensorflow-gpu msgpack msgpack-numpy pyyaml tqdm gym baselines
     
 * Start the program by running:
 
-    CUDA_VISIBLE_DEVICES=0 python main.py -m Town01 -l
+        CUDA_VISIBLE_DEVICES=0 python main.py -m Town01 -l
 
 [carlagithub]: http://carla.readthedocs.io/en/latest/running_simulator_standalone/
 [carlarelease]: https://github.com/carla-simulator/carla/releases
@@ -48,19 +48,19 @@ Reconstructed: (With hidden state of size 50, running for 1 hour)
 * Persistent training process and flexible architecture.
 
 ## Todo
-* ~~Depth as input~~
-* ~~Prioritized replay~~
-* ~~PPO~~
-* Visualize parameter transition.
-* Distributed.
-* Attention for Representation explanation.
-* Map data auxilary task, using part of the hidden state.
-* Implement MCTS.
-* Ray: Change Policy Gradient to PPO(Proximal Policy Optimization), or DDPG.
-* Glow.
-* Speed, Depth, Orientation as inputs.
-* Stop when collision.
-* Policy embedding? Curiosity, Attention, Memory ?
+- [x] Depth, framestack as input.
+- [x] Prioritized replay for better VAE learning.
+- [x] PPO.
+- [ ] Visualize parameter transition.
+- [ ] Distributed.
+- [ ] Attention for Representation explanation.
+- [ ] Map data auxilary task, using part of the hidden state.
+- [ ] Implement MCTS.
+- [ ] Glow.
+- [ ] Speed, Depth, Orientation as inputs.
+- [ ] Stop when collision.
+- [ ] Policy embedding? Curiosity, Attention, Memory ?
+
 
 ## Code Components
 * main.py: Main file. It Deals with Carla environment.
