@@ -26,8 +26,8 @@ class MLP:
 	def optimize(self, loss):
 		self.opt = tf.train.AdamOptimizer(learning_rate=self.args[self.name]['learning_rate'])
 		gvs = self.opt.compute_gradients(loss, var_list=tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.name))
-		capped_gvs = [(tf.clip_by_norm(grad, 5), var) for grad, var in gvs]
-		opt_op = self.opt.apply_gradients(capped_gvs)
+		# gvs = [(tf.clip_by_norm(grad, 5), var) for grad, var in gvs]
+		opt_op = self.opt.apply_gradients(gvs)
 		return opt_op
 
 
@@ -35,12 +35,12 @@ class MLP:
 
 		model_filename = os.path.join("save", self.name)
 
-		if os.path.isfile(model_filename + '.meta'):
-			self.saver = tf.train.import_meta_graph(model_filename + '.meta')
-			self.saver.restore(sess, model_filename)
-			return
+		# if os.path.isfile(model_filename + '.meta'):
+		# 	self.saver = tf.train.import_meta_graph(model_filename + '.meta')
+		# 	self.saver.restore(sess, model_filename)
+		# 	return
 
-		if os.path.isfile(model_filename):
+		if os.path.isfile(model_filename + '.data-00000-of-00001'):
 			self.saver.restore(sess, model_filename)
 			return
 	

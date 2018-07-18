@@ -180,7 +180,7 @@ class CarlaGame(object):
         self._agent_positions = None
         self.should_display = True
         random.seed(datetime.datetime.now())
-        self.manual = (random.randint(1,1000) != 1)
+        self.manual = (random.randint(1,2) != 1)
         self.cnt = 0
         self.history_collision = 0
 
@@ -299,11 +299,11 @@ class CarlaGame(object):
 
         self.client.send_control(control)
 
-        self.cnt += 1
         if self.cnt > BUFFER_LIMIT:
             self.carla_wrapper.post_process([measurements, sensor_data, control, reward, collision])
             self.cnt = 0
         else:
+            self.cnt += 1
             self.carla_wrapper.update([measurements, sensor_data, control, reward, collision])
 
     def get_collision(self, measurements):

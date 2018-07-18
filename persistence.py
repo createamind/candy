@@ -1,7 +1,6 @@
 from modules.c3d import C3D_Encoder
 
 from modules.policy_gradient import PG, PGLoss
-from modules.place_holders import PlaceHolders
 
 from modules.deconv import ImageDecoder
 
@@ -30,29 +29,39 @@ class Machine(object):
 		args = self.get_args()
 		self.args = args
 
-
 		#Building Graph
-        self.raw_image = tf.placeholder(tf.float32, shape=(args['batch_size'], 320, 320, 8))
-        self.speed = tf.placeholder(tf.float32, shape=(args['batch_size']))
+		self.raw_image = tf.placeholder(tf.float32, shape=(args['batch_size'], 320, 320, 8))
+		self.speed = tf.placeholder(tf.float32, shape=(args['batch_size'], 1))
+
+		self.test_raw_image = tf.placeholder(tf.float32, shape=(1, 320, 320, 8))
+		self.test_speed = tf.placeholder(tf.float32, shape=(1, 1))
 
 		#[self.image_sequence, self.raw_image, self.depth_image, self.seg_image, self.speed, self.collision, self.intersection, self.control, self.reward, self.transition]
 
 		# self.c3d_encoder = C3D_Encoder(args,'c3d_encoder', inputs[0])
 		# self.c3d_future = C3D_Encoder(args,'c3d_encoder', inputs[9], reuse=True)
 
-		self.vae = VAE(args, 'vae', raw_image)
+		self.vae = VAE(args, 'vae', self.raw_image, reuse=False)
+		self.test_vae = VAE(args, 'vae', self.test_raw_image, reuse=True)
+
 		# self.future_vae = VAE(args, self.c3d_future.inference())
 
 		recon_x, z, logsigma = self.vae.inference()
+		self.vae_loss = VAELoss(args, 'vae', recon_x, self.raw_image, z, logsigma)
+
+		test_recon_x, test_z, test_logsigma = self.test_vae.inference()
+		self.test_vae_loss = VAELoss(args, 'vae', test_recon_x, self.test_raw_image, test_z, test_logsigma)
+
 		z = tf.concat([z, self.speed], 1)
-		z = tf.Print(z, [z[0]], summarize=20)
-		self.z = z
-		self.vae_loss = VAELoss(args, 'vae', recon_x, raw_image, z, logsigma)
+		test_z = tf.concat([test_z, self.test_speed], 1)
 
-		self.ppo = PPO(args, z=self.z, ent_coef=.01, vf_coef=0.5, max_grad_norm=0.5)
+		# z = tf.Print(z, [z[0]], summarize=20)
+		# test_z = tf.Print(test_z, [test_z[0]], summarize=20)
 
+		self.ppo = PPO(args, 'ppo', z=z, test_z=test_z, ent_coef=.01, vf_coef=0.5, max_grad_norm=0.5)
+
+		self.test_vae_loss.inference()
 		# z = self.c3d_encoder.inference()
-
 
 		# self.raw_decoder = ImageDecoder(args, 'raw_image', z, last=3)
 		# self.raw_decoder_loss = MSELoss(args, 'raw_image', self.raw_decoder.inference(), inputs[1])
@@ -106,7 +115,9 @@ class Machine(object):
 		# self.goal = ValueNetwork('goal')
 
 		# self.variable_parts = [self.c3d_encoder, self.raw_decoder, self.seg_decoder, self.depth_decoder]
-		self.variable_parts = [self.vae, self.ppo]
+		self.variable_parts = [self.vae, self.ppo, self.test_vae]
+		self.variable_parts2 = [self.vae, self.ppo]
+		# self.variable_parts2 = []
 		# self.variable_parts = [self.c3d_encoder, self.raw_decoder]
 
 		# self.variable_parts = [self.c3d_encoder, self.raw_decoder, self.seg_decoder, self.depth_decoder, \
@@ -163,67 +174,90 @@ class Machine(object):
 				print(exc)
 		
 
-	def ppotrain(self, inputs, z):
-		obs, actions, values, neglogpacs, rewards, _, states = inputs
-		model.train(self.args['learning_rate'], 0.2, obs, returns, actions, values, neglogpacs, states)
+	# def ppotrain(self, inputs, z):
+	# 	obs, actions, values, neglogpacs, rewards, _, states = inputs
+	# 	model.train(self.args['learning_rate'], 0.2, obs, returns, actions, values, neglogpacs, states)
 
-        # mblossvals = []
+	#     # mblossvals = []
 
-		# assert nenvs % nminibatches == 0
-		# envsperbatch = nenvs // nminibatches
-		# envinds = np.arange(nenvs)
-		# flatinds = np.arange(nenvs * nsteps).reshape(nenvs, nsteps)
-		# envsperbatch = nbatch_train // nsteps
-		# for _ in range(noptepochs):
-		# 	np.random.shuffle(envinds)
-		# 	for start in range(0, nenvs, envsperbatch):
-		# 		end = start + envsperbatch
-		# 		mbenvinds = envinds[start:end]
-		# 		mbflatinds = flatinds[mbenvinds].ravel()
-		# 		slices = (arr[mbflatinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
-		# 		mbstates = states[mbenvinds]
-		# 		mblossvals.append(model.train(lrnow, cliprangenow, *slices, mbstates))
+	# 	# assert nenvs % nminibatches == 0
+	# 	# envsperbatch = nenvs // nminibatches
+	# 	# envinds = np.arange(nenvs)
+	# 	# flatinds = np.arange(nenvs * nsteps).reshape(nenvs, nsteps)
+	# 	# envsperbatch = nbatch_train // nsteps
+	# 	# for _ in range(noptepochs):
+	# 	# 	np.random.shuffle(envinds)
+	# 	# 	for start in range(0, nenvs, envsperbatch):
+	# 	# 		end = start + envsperbatch
+	# 	# 		mbenvinds = envinds[start:end]
+	# 	# 		mbflatinds = flatinds[mbenvinds].ravel()
+	# 	# 		slices = (arr[mbflatinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
+	# 	# 		mbstates = states[mbenvinds]
+	# 	# 		mblossvals.append(model.train(lrnow, cliprangenow, *slices, mbstates))
 
-	def step(obs, state):
-		mask = np.zeros(self.args['batch_size'])
-		td_map = {self.ppo.act_model.S:state, self.ppo.act_model.M:mask}
-		td_map[self.raw_image] = np.array(obs[0])
-		td_map[self.speed] = np.array(obs[1])
+	def step(self, obs, state):
+		# mask = np.zeros(1)
+		td_map = {self.ppo.act_model.S:state}
+		td_map[self.test_raw_image] = np.array([obs[0]])
+		td_map[self.test_speed] = np.array([[obs[1]]])
 
-		return sess.run([self.ppo.act_model.a0, self.ppo.act_model.v0, self.ppo.act_model.snew, self.ppo.act_model.neglogp0, self.vae_loss.recon], td_map)
+		return self.sess.run([self.ppo.act_model.a0, self.ppo.act_model.v0, self.ppo.act_model.snew, self.ppo.act_model.neglogp0, self.test_vae_loss.recon], td_map)
 
 
-	def value(obs, states, action):
-		mask = np.zeros(self.args['batch_size'])
-		td_map = {self.ppo.act_model.S:state, self.ppo.act_model.M:mask, self.ppo.act_model.a_z: action}
-		td_map[self.raw_image] = np.array(obs[0])
-		td_map[self.speed] = np.array(obs[1])
-		return sess.run([self.ppo.act_model.action, self.ppo.act_model.v0, self.ppo.act_model.snew, self.ppo.act_model.neglogpz, self.vae_loss.recon], td_map)
+	def value(self, obs, state, action):
+		# mask = np.zeros(1)
+		td_map = {self.ppo.act_model.S:state, self.ppo.act_model.a_z: [action]}
+		td_map[self.test_raw_image] = np.array([obs[0]])
+		td_map[self.test_speed] = np.array([[obs[1]]])
+		return self.sess.run([self.ppo.act_model.a_z, self.ppo.act_model.v0, self.ppo.act_model.snew, self.ppo.act_model.neglogpz, self.test_vae_loss.recon], td_map)
 
 	def train(self, inputs, global_step):
 		obs, actions, values, neglogpacs, rewards, vaerecons, states = inputs
 
-		advs = returns - values
+		# print(obs.shape)
+		# print(actions.shape)
+		# print(values.shape)
+		# print(neglogpacs.shape)
+		# print(rewards.shape)
+		# print(vaerecons.shape)
+		# print(states.shape)
+
+
+
+		values = np.squeeze(values, 1)
+		neglogpacs = np.squeeze(neglogpacs, 1)
+		# rewards = np.squeeze(rewards, 1)
+
+		raw_image = np.array([ob[0] for ob in obs])
+		speed = np.array([[ob[1]] for ob in obs])
+
+		# print(raw_image.shape)
+		# print(speed.shape)
+
+
+		advs = rewards - values
 		advs = (advs - advs.mean()) / (advs.std() + 1e-8)
-		td_map = {self.ppo.A:actions, self.ppo.ADV:advs, self.ppo.R:returns, self.ppo.OLDNEGLOGPAC:neglogpacs, self.ppo.OLDVPRED:values}
 
-		mask = np.zeros(self.args['batch_size'])
-		td_map[self.ppo.train_model.S] = states
-		td_map[self.ppo.train_model.M] = mask
+		td_map = {self.ppo.A:actions, self.ppo.ADV:advs, self.ppo.R:rewards, self.ppo.OLDNEGLOGPAC:neglogpacs, self.ppo.OLDVPRED:values}
 
-		td_map[self.raw_image] = np.array([ob[0] for ob in obs])
-		td_map[self.speed] = np.array([ob[1] for ob in obs])
+		# mask = np.zeros(self.args['batch_size'])
+		td_map[self.ppo.train_model.S] = np.squeeze(states, 1)
+		# td_map[self.ppo.train_model.M] = mask
 
-		summary, _ = self.sess.run([self.merged, self.final_ops], feed_dict=self.place_holders.get_feed_dict_train(inputs))
-		# self.ppotrain(self.place_holders.get_ppo_inputs(inputs), z)
+		td_map[self.raw_image] = raw_image
+		td_map[self.speed] = speed
+		td_map[self.test_raw_image] = [raw_image[0]]
+		td_map[self.test_speed] = [speed[0]]
+
+		summary, _ = self.sess.run([self.merged, self.final_ops], feed_dict=td_map)
 		self.writer.add_summary(summary, global_step)
 
 
 	def save(self):
 		print('Start Saving')
-		for i in self.variable_parts:
-			i.saver.save(self.sess, './save/' + str(i.name), global_step=None)
-=		print('Saving Done.')
+		for i in self.variable_parts2:
+			i.saver.save(self.sess, './save/' + str(i.name), global_step=None, write_meta_graph=False, write_state=False)
+		print('Saving Done.')
 
 
 

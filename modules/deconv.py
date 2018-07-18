@@ -82,20 +82,20 @@ class ImageDecoder:
 		gvs = self.opt.compute_gradients(loss, var_list=tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.name))
 		# print(self.name)
 		# print(gvs)
-		capped_gvs = [(tf.clip_by_norm(grad, 5), var) for grad, var in gvs if not grad is None]
-		opt_op = self.opt.apply_gradients(capped_gvs)
+		# gvs = [(tf.clip_by_norm(grad, 5), var) for grad, var in gvs if not grad is None]
+		opt_op = self.opt.apply_gradients(gvs)
 		return opt_op
 
 	def variable_restore(self, sess):
 
 		model_filename = os.path.join("save", self.name)
 
-		if os.path.isfile(model_filename + '.meta'):
-			self.saver = tf.train.import_meta_graph(model_filename + '.meta')
-			self.saver.restore(sess, model_filename)
-			return
+		# if os.path.isfile(model_filename + '.meta'):
+		# 	self.saver = tf.train.import_meta_graph(model_filename + '.meta')
+		# 	self.saver.restore(sess, model_filename)
+		# 	return
 
-		if os.path.isfile(model_filename):
+		if os.path.isfile(model_filename + '.data-00000-of-00001'):
 			self.saver.restore(sess, model_filename)
 			return
 		

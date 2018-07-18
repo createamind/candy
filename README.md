@@ -30,8 +30,11 @@ Reconstructed: (With hidden state of size 50, running for 1 hour)
 * Start CarlaUE4 engine in server mode, using commands from [here][carlagithub].
 * Install Carla PythonClient using `pip install ~/carla/PythonClient`.
 * Install required packages:
-    pip install numpy tensorflow msgpack msgpack-numpy pyyaml tqdm gym baselines
+
+    pip install numpy tensorflow-gpu msgpack msgpack-numpy pyyaml tqdm gym baselines
+    
 * Start the program by running:
+
     CUDA_VISIBLE_DEVICES=0 python main.py -m Town01 -l
 
 [carlagithub]: http://carla.readthedocs.io/en/latest/running_simulator_standalone/
@@ -45,9 +48,9 @@ Reconstructed: (With hidden state of size 50, running for 1 hour)
 * Persistent training process and flexible architecture.
 
 ## Todo
-* Depth as input
-* Prioritized replay
-* PPO
+* ~~Depth as input~~
+* ~~Prioritized replay~~
+* ~~PPO~~
 * Visualize parameter transition.
 * Distributed.
 * Attention for Representation explanation.

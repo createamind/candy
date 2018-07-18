@@ -153,8 +153,8 @@ class C3D_Encoder(object):
 		self.opt = tf.train.AdamOptimizer(learning_rate=self.args[self.name]['learning_rate'])
 
 		gvs = self.opt.compute_gradients(loss, var_list=tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='var_name'))
-		capped_gvs = [(tf.clip_by_norm(grad, 5), var) for grad, var in gvs]
-		opt_op = self.opt.apply_gradients(capped_gvs)
+		# gvs = [(tf.clip_by_norm(grad, 5), var) for grad, var in gvs]
+		opt_op = self.opt.apply_gradients(gvs)
 
 		# opt_op = self.opt.minimize(loss, var_list=tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='var_name'))
 		return opt_op
@@ -163,11 +163,11 @@ class C3D_Encoder(object):
 	def variable_restore(self, sess):
 		model_filename = os.path.join("save", self.name)
 
-		if os.path.isfile(model_filename + '.meta'):
-			self.saver = tf.train.import_meta_graph(model_filename + '.meta')
-			self.saver.restore(sess, model_filename)
-			return
+		# if os.path.isfile(model_filename + '.meta'):
+		# 	self.saver = tf.train.import_meta_graph(model_filename + '.meta')
+		# 	self.saver.restore(sess, model_filename)
+		# 	return
 
-		if os.path.isfile(model_filename):
+		if os.path.isfile(model_filename + '.data-00000-of-00001'):
 			self.saver.restore(sess, model_filename)
 			return
