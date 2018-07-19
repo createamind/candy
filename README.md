@@ -28,10 +28,17 @@ Reconstructed: (With hidden state of size 50, running for 1 hour)
 (This project is still working in progress.)
 * Download Carla-0.8.2 from [here][carlarelease].
 * Start CarlaUE4 engine in server mode, using commands from [here][carlagithub].
-* Install Carla PythonClient using `pip install ~/carla/PythonClient`.
+
+        ./CarlaUE4.sh -windowed -ResX=800 -ResY=600 -carla-server -benchmark -fps=10
+    
+* Install Carla PythonClient using:
+
+        pip install ~/carla/PythonClient
+
+* Install Openai baselines from [here][baseline].
 * Install required packages:
 
-        pip install numpy tensorflow-gpu msgpack msgpack-numpy pyyaml tqdm gym baselines
+        pip install numpy tensorflow-gpu msgpack msgpack-numpy pyyaml tqdm gym
     
 * Start the program by running:
 
@@ -39,6 +46,7 @@ Reconstructed: (With hidden state of size 50, running for 1 hour)
 
 [carlagithub]: http://carla.readthedocs.io/en/latest/running_simulator_standalone/
 [carlarelease]: https://github.com/carla-simulator/carla/releases
+[baseline]: https://github.com/openai/baselines
 
 
 ## Candy Features

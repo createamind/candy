@@ -180,7 +180,7 @@ class CarlaGame(object):
         self._agent_positions = None
         self.should_display = True
         random.seed(datetime.datetime.now())
-        self.manual = (random.randint(1,2) != 1)
+        self.manual = (random.randint(1,3) == 1)
         self.cnt = 0
         self.history_collision = 0
 
@@ -340,10 +340,10 @@ class CarlaGame(object):
         if keys[K_t]:
             self.should_display = not self.should_display
             return 'done', None
-        if keys[K_m]:
+        if keys[K_m] or random.randint(1,300) == 1:
             self.manual = True
             return 'done', None
-        if keys[K_n]:
+        if keys[K_n] or random.randint(1,300) == 1:
             self.manual = False
             return 'done', None
         if keys[K_v]:

@@ -31,7 +31,7 @@ class Carla_Wrapper(object):
 
 		self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states = [],[],[],[],[],[],[]
 
-		self.last_frame = np.zeros([320,320,4])
+		self.last_frame = None
 		self.pretrain()
 
 
@@ -140,6 +140,8 @@ class Carla_Wrapper(object):
 		sensor_data = self.process_sensor_data(sensor_data)
 
 		nowframe = np.concatenate([sensor_data[0], sensor_data[1]], 2)
+		if self.last_frame is None:
+			self.last_frame = nowframe
 		obs = np.concatenate([self.last_frame, nowframe], 2)
 		if refresh:
 			self.last_frame = nowframe
@@ -204,7 +206,7 @@ class Carla_Wrapper(object):
 		print(difficulty[:20])
 		def softmax(x):
 			return np.exp(x) / np.sum(np.exp(x), axis=0)
-		difficulty = softmax(difficulty * 20)
+		difficulty = softmax(difficulty * 100)
 		print(difficulty[:20])
 		print("Memory Extraction Done.")
 
@@ -241,8 +243,8 @@ class Carla_Wrapper(object):
 			control.hand_brake = True
 			if cod == 10:
 				control.steer = -1
-			elif cod == 10:
-				control.steer = -1
+			elif cod == 11:
+				control.steer = 1
 			return control
 
 		if cod == 9:

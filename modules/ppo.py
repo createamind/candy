@@ -17,7 +17,7 @@ HIDDEN = 16
 
 class LstmPolicy(object):
 
-	def __init__(self, args, name, X, nbatch, nsteps, nlstm=50, reuse=False):
+	def __init__(self, args, name, X, nbatch, nsteps, nlstm=20, reuse=False):
 		nenv = nbatch // nsteps
 		self.args = args
 		self.name = name
@@ -37,6 +37,8 @@ class LstmPolicy(object):
 
 			h5 = tf.layers.dense(o, 13, kernel_regularizer=tf.contrib.layers.l2_regularizer(self.args[self.name]['weight_decay']))
 			vf = tf.layers.dense(o, 1, kernel_regularizer=tf.contrib.layers.l2_regularizer(self.args[self.name]['weight_decay']))
+			
+			h5 = tf.Print(h5, [h5], summarize=20)
 			self.pd, self.pi = self.pdtype.pdfromlatent(h5)
 
 		v0 = vf[:, 0]
