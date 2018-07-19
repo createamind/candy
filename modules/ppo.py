@@ -38,8 +38,11 @@ class LstmPolicy(object):
 			h5 = tf.layers.dense(o, 13, kernel_regularizer=tf.contrib.layers.l2_regularizer(self.args[self.name]['weight_decay']))
 			vf = tf.layers.dense(o, 1, kernel_regularizer=tf.contrib.layers.l2_regularizer(self.args[self.name]['weight_decay']))
 			
-			h5 = tf.Print(h5, [h5], summarize=20)
+			# h5 = tf.Print(h5, [h5], summarize=15)
+			h5 = tf.clip_by_value(h5, -5, 5)
+
 			self.pd, self.pi = self.pdtype.pdfromlatent(h5)
+
 
 		v0 = vf[:, 0]
 		a0 = self.pd.sample()
@@ -80,6 +83,10 @@ class PPO(object):
 		OLDVPRED = tf.placeholder(tf.float32, [None])
 		CLIPRANGE = 0.2
 
+
+		self.std_action = tf.placeholder(tf.int32, [None])
+		self.std_mask = tf.placeholder(tf.bool, [None])
+
 		self.A = A
 		self.ADV = ADV
 		self.R = R
@@ -101,9 +108,16 @@ class PPO(object):
 		approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - OLDNEGLOGPAC))
 		clipfrac = tf.reduce_mean(tf.to_float(tf.greater(tf.abs(ratio - 1.0), CLIPRANGE)))
 		loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef
+
+		imitation_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.pi, labels=self.std_action)
+		imitation_loss = tf.reduce_mean(tf.boolean_mask(imitation_loss, self.std_mask))
+
+		loss = loss + self.args['imitation_coefficient'] * imitation_loss
+
 		tf.summary.scalar('pgloss', pg_loss)
 		tf.summary.scalar('vfloss', vf_loss)
 		tf.summary.scalar('entropyloss', entropy)
+		tf.summary.scalar('imitation_loss', imitation_loss)
 		# with tf.variable_scope('model'):
 		#     params = tf.trainable_variables()
 		# grads = tf.gradients(loss, params)

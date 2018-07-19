@@ -111,7 +111,7 @@ class VAELoss():
 		tf.summary.scalar(self.name + 'loss_vae', self.vae)
 		tf.summary.scalar(self.name + 'loss_recon', self.recon)
 
-		return tf.reduce_sum(self.recon + 100 * self.vae)
+		return tf.reduce_sum(self.recon + 250 * self.vae)
 
 
 
@@ -154,7 +154,7 @@ class VAEVisualize():
 				x = tf.nn.relu(tf.layers.conv2d_transpose(x, 128, [4, 4], strides=(2, 2), padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(self.args[self.name]['weight_decay'])))
 				x = tf.nn.relu(tf.layers.conv2d_transpose(x, 64, [4, 4], strides=(2, 2), padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(self.args[self.name]['weight_decay'])))
 				x = tf.nn.relu(tf.layers.conv2d_transpose(x, 16, [4, 4], strides=(2, 2), padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(self.args[self.name]['weight_decay'])))
-				x = tf.nn.tanh(tf.layers.conv2d_transpose(x, 3, [4, 4], strides=(2, 2), padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(self.args[self.name]['weight_decay'])))
+				x = tf.nn.tanh(tf.layers.conv2d_transpose(x, 8, [4, 4], strides=(2, 2), padding='SAME', kernel_regularizer=tf.contrib.layers.l2_regularizer(self.args[self.name]['weight_decay'])))
 
 		return x
 

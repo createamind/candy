@@ -22,10 +22,10 @@ Use ARROWS or WASD keys for control.
     P            : toggle autopilot
     R            : restart level
     1-9            : set reward
-    n            : set auto driving
-    m            : set manual pilot
+    n            : disable imitation learning
+    m            : enable imitation learning
     t            : toggle display
-    v            : end this episode
+    c            : toggle model control
 
 STARTING in a moment...
 """
@@ -64,6 +64,7 @@ try:
     from pygame.locals import K_8
     from pygame.locals import K_9
     from pygame.locals import K_v
+    from pygame.locals import K_c
 
     
     
@@ -97,8 +98,8 @@ def make_carla_settings(args):
     settings.set(
         SynchronousMode=True,
         SendNonPlayerAgentsInfo=True,
-        NumberOfVehicles=15,
-        NumberOfPedestrians=30,
+        NumberOfVehicles=50,
+        NumberOfPedestrians=50,
         WeatherId=random.choice([1, 3, 7, 8, 14]),
         QualityLevel=args.quality_level)
     settings.randomize_seeds()
@@ -180,9 +181,12 @@ class CarlaGame(object):
         self._agent_positions = None
         self.should_display = True
         random.seed(datetime.datetime.now())
-        self.manual = (random.randint(1,3) == 1)
+        self.manual = True
+        self.manual_control = (random.randint(1,2) == 1)
         self.cnt = 0
         self.history_collision = 0
+        self.ucnt = 0
+        self.prev_control = None
 
 
         self.carla_wrapper = wrapper
@@ -222,6 +226,7 @@ class CarlaGame(object):
         scene = self.client.load_settings(self._carla_settings)
         number_of_player_starts = len(scene.player_start_spots)
         player_start = np.random.randint(number_of_player_starts)
+        # player_start = 83
         print('Starting new episode...')
         self.client.start_episode(player_start)
         self._timer = Timer()
@@ -288,23 +293,42 @@ class CarlaGame(object):
             self._on_new_episode()
             return
 
+        # if self.prev_control is None or self.ucnt == 5:
 
-        if self.manual:
-            if self._enable_autopilot:
-                control = measurements.player_measurements.autopilot_control
-        else:
-            control = self.carla_wrapper.get_control([measurements, sensor_data, control, reward, collision])
+        if self._enable_autopilot:
+            control = measurements.player_measurements.autopilot_control
+
+
+        model_control = self.carla_wrapper.get_control([measurements, sensor_data, control, reward, collision, control, self.manual])
+
+
+        # else:
+        #     if random.randint(1,2) == 1:
+        #     else:
+        #         control = measurements.player_measurements.autopilot_control
+
+
+        #     self.ucnt = 0
+        #     self.prev_control = control
+        # else:
+        #     self.ucnt += 1
+        #     control = self.prev_control
 
         print(control)
+        print(model_control)
 
-        self.client.send_control(control)
+        if self.manual_control:
+            self.client.send_control(control)
+        else:
+            self.client.send_control(model_control)
 
         if self.cnt > BUFFER_LIMIT:
-            self.carla_wrapper.post_process([measurements, sensor_data, control, reward, collision])
+            self.carla_wrapper.post_process([measurements, sensor_data, model_control, reward, collision, control, self.manual])
             self.cnt = 0
         else:
             self.cnt += 1
-            self.carla_wrapper.update([measurements, sensor_data, control, reward, collision])
+            self.carla_wrapper.update([measurements, sensor_data, model_control, reward, collision, control, self.manual])
+
 
     def get_collision(self, measurements):
         new_collision = measurements.player_measurements.collision_vehicles + measurements.player_measurements.collision_pedestrians + measurements.player_measurements.collision_other
@@ -326,7 +350,7 @@ class CarlaGame(object):
         # print('speed = ' + str(speed) + 'collision = ' + str(collision) + 'intersection = ' + str(intersection))
 
         if reward is None:
-            reward = (speed - collision / 50 - intersection * 100) / 100.0
+            reward = (speed / 2.0 - collision / 50 - intersection * 100) / 100.0
 
         return reward, [speed, collision, intersection]
         
@@ -340,10 +364,10 @@ class CarlaGame(object):
         if keys[K_t]:
             self.should_display = not self.should_display
             return 'done', None
-        if keys[K_m] or random.randint(1,300) == 1:
+        if keys[K_m]:
             self.manual = True
             return 'done', None
-        if keys[K_n] or random.randint(1,300) == 1:
+        if keys[K_n]:
             self.manual = False
             return 'done', None
         if keys[K_v]:
@@ -362,6 +386,8 @@ class CarlaGame(object):
             control.hand_brake = True
         if keys[K_q]:
             self._is_on_reverse = not self._is_on_reverse
+        if keys[K_c]:
+            self.manual_control = not self.manual_control
         if keys[K_p]:
             self._enable_autopilot = not self._enable_autopilot
         control.reverse = self._is_on_reverse

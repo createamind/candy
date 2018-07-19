@@ -4,11 +4,11 @@ refs/
 .vscode/
 *.swp
 .idea/
-z.tmp
 __pycache__/
 *.py[cod]
 *$py.class
 
+z.tmp
 # C extensions
 *.so
 

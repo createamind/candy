@@ -35,14 +35,20 @@ Reconstructed: (With hidden state of size 50, running for 1 hour)
 
         pip install ~/carla/PythonClient
 
-* Install Openai baselines from [here][baseline].
+* Install Openai baselines under instructions [here][baseline].
 * Install required packages:
 
-        pip install numpy tensorflow-gpu msgpack msgpack-numpy pyyaml tqdm gym
+        pip install numpy tensorflow-gpu msgpack msgpack-numpy pyyaml tqdm gym opencv-python
     
 * Start the program by running:
 
         CUDA_VISIBLE_DEVICES=0 python main.py -m Town01 -l
+
+* Visualization: After running the following command, open localhost:6006 on the browser.
+
+        tensorboard -logdir=./logs
+
+
 
 [carlagithub]: http://carla.readthedocs.io/en/latest/running_simulator_standalone/
 [carlarelease]: https://github.com/carla-simulator/carla/releases

@@ -17,7 +17,7 @@ BUFFER_LIMIT = 258
 BATCH_SIZE = 64
 KEEP_CNT = 1000
 MAX_SAVE = 0
-TRAIN_EPOCH = 50
+TRAIN_EPOCH = 75
 
 class Carla_Wrapper(object):
 
@@ -29,10 +29,10 @@ class Carla_Wrapper(object):
 		self.gamma = gamma
 		self.state = self.machine.ppo.initial_state
 
-		self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states = [],[],[],[],[],[],[]
+		self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states, self.std_actions, self.manual = [],[],[],[],[],[],[],[],[]
 
 		self.last_frame = None
-		self.pretrain()
+		# self.pretrain()
 
 
 	def analyze_control(self, control):
@@ -80,7 +80,7 @@ class Carla_Wrapper(object):
 
 	def post_process(self, inputs):
 
-		obs, reward, action = self.pre_process(inputs)
+		obs, reward, action, std_action, manual = self.pre_process(inputs)
 
 		#batch of steps to batch of rollouts
 		# self.obs = np.asarray(self.obs, dtype=np.float32)
@@ -111,22 +111,22 @@ class Carla_Wrapper(object):
 		print(' '.join([('%.2f' % i)for i in self.rewards]))
 
 		# self.rewards = np.array(self.rewards)
-		if os.path.exists('obs/data'):
-			with open('obs/data', 'rb') as fp:
-				obs, actions, values, neglogpacs, rewards, vaerecons, states = msgpack.load(fp, encoding='utf-8', raw=False)
-		else:
-			obs, actions, values, neglogpacs, rewards, vaerecons, states = [], [], [], [], [], [], []
+		# if os.path.exists('obs/data'):
+		# 	with open('obs/data', 'rb') as fp:
+		# 		obs, actions, values, neglogpacs, rewards, vaerecons, states = msgpack.load(fp, encoding='utf-8', raw=False)
+		# else:
+		# 	obs, actions, values, neglogpacs, rewards, vaerecons, states = [], [], [], [], [], [], []
 		
-		if len(obs) < MAX_SAVE:
-			with open('obs/data', 'wb') as fp:
-				msgpack.dump([obs + self.obs[l - BUFFER_LIMIT:l],\
-				 actions + self.actions[l - BUFFER_LIMIT:l],\
-				 values + self.values[l - BUFFER_LIMIT:l],\
-				 neglogpacs + self.neglogpacs[l - BUFFER_LIMIT:l],\
-				 rewards + self.rewards[l - BUFFER_LIMIT:l],\
-				 vaerecons + self.vaerecons[l - BUFFER_LIMIT:l],\
-				 states + self.states[l - BUFFER_LIMIT:l]],\
-				 fp, use_bin_type=True)
+		# if len(obs) < MAX_SAVE:
+		# 	with open('obs/data', 'wb') as fp:
+		# 		msgpack.dump([obs + self.obs[l - BUFFER_LIMIT:l],\
+		# 		 actions + self.actions[l - BUFFER_LIMIT:l],\
+		# 		 values + self.values[l - BUFFER_LIMIT:l],\
+		# 		 neglogpacs + self.neglogpacs[l - BUFFER_LIMIT:l],\
+		# 		 rewards + self.rewards[l - BUFFER_LIMIT:l],\
+		# 		 vaerecons + self.vaerecons[l - BUFFER_LIMIT:l],\
+		# 		 states + self.states[l - BUFFER_LIMIT:l]],\
+		# 		 fp, use_bin_type=True)
 			
 
 		# print(self.rewards)
@@ -136,7 +136,7 @@ class Carla_Wrapper(object):
 
 
 	def pre_process(self, inputs, refresh=False):
-		measurements, sensor_data, control, reward, collision = inputs
+		measurements, sensor_data, control, reward, collision, std_control, manual = inputs
 		sensor_data = self.process_sensor_data(sensor_data)
 
 		nowframe = np.concatenate([sensor_data[0], sensor_data[1]], 2)
@@ -149,12 +149,13 @@ class Carla_Wrapper(object):
 		obs = (obs, measurements.player_measurements.forward_speed * 3.6 / 100)
 
 		action = self.analyze_control(control)
-		return obs, reward, action
+		std_action = self.analyze_control(std_control)
+		return obs, reward, action, std_action, manual
 		
 
 	def update(self, inputs):
 
-		obs, reward, action = self.pre_process(inputs, refresh=True)
+		obs, reward, action, std_action, manual = self.pre_process(inputs, refresh=True)
 
 		# sensor_data = self.process_sensor_data(sensor_data)
 		# obs = [sensor_data[0]]
@@ -179,17 +180,20 @@ class Carla_Wrapper(object):
 		self.neglogpacs.append(neglogpacs)
 		self.rewards.append(reward)
 		self.vaerecons.append(vaerecon)
+		self.std_actions.append(std_action)
+		self.manual.append(manual)
 
 		# self.red_buffer.append(red)
 		# self.manual_buffer.append(manual)
 
 	def pretrain(self):
-		if os.path.exists('obs/data'):
-			print('Start Pretraining!!')
-			with open('obs/data', 'rb') as fp:
-				self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states = msgpack.load(fp, encoding='utf-8', raw=False)
-			print('Pretraining length = ', len(self.obs))
-			self.memory_training(pretrain=True)
+		raise NotImplementedError
+		# if os.path.exists('obs/data'):
+		# 	print('Start Pretraining!!')
+		# 	with open('obs/data', 'rb') as fp:
+		# 		self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states = msgpack.load(fp, encoding='utf-8', raw=False)
+		# 	print('Pretraining length = ', len(self.obs))
+		# 	self.memory_training(pretrain=True)
 
 	def calculate_difficulty(self, reward, vaerecon):
 		return vaerecon
@@ -199,7 +203,7 @@ class Carla_Wrapper(object):
 		batch = []
 		difficulty = []
 		for i in range(l):
-			batch.append([self.obs[i], self.actions[i], self.values[i], self.neglogpacs[i], self.rewards[i], self.vaerecons[i], self.states[i]])
+			batch.append([self.obs[i], self.actions[i], self.values[i], self.neglogpacs[i], self.rewards[i], self.vaerecons[i], self.states[i], self.std_actions[i], self.manual[i]])
 			difficulty.append(self.calculate_difficulty(self.rewards[i], self.vaerecons[i]))
 
 		difficulty = np.array(difficulty)
@@ -215,19 +219,20 @@ class Carla_Wrapper(object):
 			tbatch = []
 			for i in roll:
 				tbatch.append(batch[i])
-			tra_batch = [np.array([t[i] for t in tbatch]) for i in range(7)]
+			tra_batch = [np.array([t[i] for t in tbatch]) for i in range(9)]
+			# tra_batch = [np.array([t[i] for t in tbatch]) for i in range(7)]
 			self.machine.train(tra_batch, self.global_step)
 			self.global_step += 1
 
 		self.machine.save()
 
-		if pretrain:          
-			self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states = [],[],[],[],[],[],[]
+		# if pretrain:          
+		# 	self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states = [],[],[],[],[],[],[]
 
-		if len(self.obs) > KEEP_CNT:
-			rem = len(self.obs) - KEEP_CNT
-			self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states = \
-				self.obs[rem:],self.actions[rem:],self.values[rem:],self.neglogpacs[rem:],self.rewards[rem:],self.vaerecons[rem:], self.states[rem:]
+		# if len(self.obs) > KEEP_CNT:
+		# 	rem = len(self.obs) - KEEP_CNT
+		# 	self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states = \
+		# 		self.obs[rem:],self.actions[rem:],self.values[rem:],self.neglogpacs[rem:],self.rewards[rem:],self.vaerecons[rem:], self.states[rem:]
 
 	def decode_control(self, cod):
 		control = VehicleControl()
@@ -265,7 +270,7 @@ class Carla_Wrapper(object):
 		return control
 
 	def get_control(self, inputs):
-		obs, reward, action = self.pre_process(inputs)
+		obs, reward, action, std_action, manual = self.pre_process(inputs)
 		action, _, _, _, _ = self.machine.step(obs, self.state)
 		control = self.decode_control(action)
 		return control

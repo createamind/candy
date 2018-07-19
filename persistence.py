@@ -55,7 +55,10 @@ class Machine(object):
 		z = tf.concat([z, self.speed], 1)
 		test_z = tf.concat([test_z, self.test_speed], 1)
 
-		# z = tf.Print(z, [z[0]], summarize=20)
+		z = tf.clip_by_value(z, -5, 5)
+		test_z = tf.clip_by_value(test_z, -5, 5)
+
+		# z = tf.Print(z, [z[0]], summarize=15)
 		# test_z = tf.Print(test_z, [test_z[0]], summarize=20)
 
 		self.ppo = PPO(args, 'ppo', z=z, test_z=test_z, ent_coef=.01, vf_coef=0.5, max_grad_norm=0.5)
@@ -212,7 +215,7 @@ class Machine(object):
 		return self.sess.run([self.ppo.act_model.a_z, self.ppo.act_model.v0, self.ppo.act_model.snew, self.ppo.act_model.neglogpz, self.test_vae_loss.recon], td_map)
 
 	def train(self, inputs, global_step):
-		obs, actions, values, neglogpacs, rewards, vaerecons, states = inputs
+		obs, actions, values, neglogpacs, rewards, vaerecons, states, std_actions, manual = inputs
 
 		# print(obs.shape)
 		# print(actions.shape)
@@ -221,8 +224,6 @@ class Machine(object):
 		# print(rewards.shape)
 		# print(vaerecons.shape)
 		# print(states.shape)
-
-
 
 		values = np.squeeze(values, 1)
 		neglogpacs = np.squeeze(neglogpacs, 1)
@@ -243,6 +244,9 @@ class Machine(object):
 		# mask = np.zeros(self.args['batch_size'])
 		td_map[self.ppo.train_model.S] = np.squeeze(states, 1)
 		# td_map[self.ppo.train_model.M] = mask
+
+		td_map[self.ppo.std_action] = std_actions
+		td_map[self.ppo.std_mask] = manual
 
 		td_map[self.raw_image] = raw_image
 		td_map[self.speed] = speed
