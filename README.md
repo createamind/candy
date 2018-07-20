@@ -38,7 +38,7 @@ Reconstructed: (With hidden state of size 50, running for 1 hour)
 * Install Openai baselines under instructions [here][baseline].
 * Install required packages:
 
-        pip install numpy tensorflow-gpu msgpack msgpack-numpy pyyaml tqdm gym opencv-python
+        pip install numpy tensorflow-gpu msgpack msgpack-numpy pyyaml tqdm gym opencv-python scipy
     
 * Start the program by running:
 
@@ -57,8 +57,7 @@ Reconstructed: (With hidden state of size 50, running for 1 hour)
 
 ## Candy Features
 * Combining imitation learning and reinforcement learning.
-* Use MCTS for planning.
-* Plenty of auxiliary tasks for robust hidden representation.
+* VAE unsupervised learning for world model construction.
 * Persistent training process and flexible architecture.
 
 ## Todo
@@ -67,14 +66,22 @@ Reconstructed: (With hidden state of size 50, running for 1 hour)
 - [x] PPO.
 - [ ] Visualize parameter transition.
 - [ ] Distributed.
-- [ ] Attention for Representation explanation.
 - [ ] Map data auxilary task, using part of the hidden state.
 - [ ] Implement MCTS.
-- [ ] Glow.
+- [ ] Auxilary tasks.
+- [ ] Openai Glow?
 - [ ] Speed, Depth, Orientation as inputs.
 - [ ] Stop when collision.
 - [ ] Policy embedding? Curiosity, Attention, Memory ?
+- [ ] The ability of planning
+- [ ] World model: Math representation, Language acuisition
+- [ ] Attentional VAE
+- [ ] Attention for Representation explanation.
 
+
+## Ideal Features
+* Traffic Rules Learning.
+* Guide command following.
 
 ## Code Components
 * main.py: Main file. It Deals with Carla environment.

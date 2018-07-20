@@ -26,6 +26,7 @@ Use ARROWS or WASD keys for control.
     m            : enable imitation learning
     t            : toggle display
     c            : toggle model control
+    v            : reset now
 
 STARTING in a moment...
 """
@@ -182,11 +183,12 @@ class CarlaGame(object):
         self.should_display = True
         random.seed(datetime.datetime.now())
         self.manual = True
-        self.manual_control = (random.randint(1,2) == 1)
+        self.manual_control = (random.randint(1,1000) == 1)
         self.cnt = 0
         self.history_collision = 0
         self.ucnt = 0
         self.prev_control = None
+        self.endnow = False
 
 
         self.carla_wrapper = wrapper
@@ -226,7 +228,7 @@ class CarlaGame(object):
         scene = self.client.load_settings(self._carla_settings)
         number_of_player_starts = len(scene.player_start_spots)
         player_start = np.random.randint(number_of_player_starts)
-        # player_start = 83
+        player_start = 81
         print('Starting new episode...')
         self.client.start_episode(player_start)
         self._timer = Timer()
@@ -322,11 +324,13 @@ class CarlaGame(object):
         else:
             self.client.send_control(model_control)
 
-        if self.cnt > BUFFER_LIMIT:
-            self.carla_wrapper.post_process([measurements, sensor_data, model_control, reward, collision, control, self.manual])
+        if self.endnow or (self.cnt > 10 and (self.cnt > BUFFER_LIMIT or collision > 0 or measurements.player_measurements.intersection_offroad > 0.2 or measurements.player_measurements.intersection_otherlane > 0.2)):
+            self.carla_wrapper.post_process([measurements, sensor_data, model_control, -1, collision, control, self.manual], self.cnt)
             self.cnt = 0
+            self.endnow = False
         else:
             self.cnt += 1
+            self.endnow = False
             self.carla_wrapper.update([measurements, sensor_data, model_control, reward, collision, control, self.manual])
 
 
@@ -371,7 +375,7 @@ class CarlaGame(object):
             self.manual = False
             return 'done', None
         if keys[K_v]:
-            self.cnt = 100000
+            self.endnow = True
             return 'done', None
         control = VehicleControl()
         if keys[K_LEFT] or keys[K_a]:

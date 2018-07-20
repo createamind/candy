@@ -13,11 +13,11 @@ m.patch()
 
 import os
 
-BUFFER_LIMIT = 258
+# BUFFER_LIMIT = 258
 BATCH_SIZE = 64
 KEEP_CNT = 1000
 MAX_SAVE = 0
-TRAIN_EPOCH = 75
+TRAIN_EPOCH = 50
 
 class Carla_Wrapper(object):
 
@@ -78,7 +78,7 @@ class Carla_Wrapper(object):
 		return [t1, t2, t3]
 
 
-	def post_process(self, inputs):
+	def post_process(self, inputs, cnt):
 
 		obs, reward, action, std_action, manual = self.pre_process(inputs)
 
@@ -95,20 +95,21 @@ class Carla_Wrapper(object):
 
 		#discount/bootstrap off value fn
 		self.advs = np.zeros_like(self.rewards)
-
+		self.rewards[-1] = reward
+		print(' '.join([('%.2f' % i)for i in self.rewards]))
 		l = len(self.obs)
 		lastgaelam = 0
-		for t in reversed(range(l - BUFFER_LIMIT, l)):
+		for t in reversed(range(l - cnt, l)):
 			if t == l - 1:
 				nextvalues = last_values
 			else:
 				nextvalues = self.values[t+1]
 			delta = self.rewards[t] + self.gamma * nextvalues - self.values[t]
 			self.advs[t] = lastgaelam = delta + self.gamma * self.lam * lastgaelam
-		for t in range(l - BUFFER_LIMIT, l):
+		for t in range(l - cnt, l):
 			self.rewards[t] = float(self.advs[t] + self.values[t])
 
-		print(' '.join([('%.2f' % i)for i in self.rewards]))
+		# print(' '.join([('%.2f' % i)for i in self.rewards]))
 
 		# self.rewards = np.array(self.rewards)
 		# if os.path.exists('obs/data'):
