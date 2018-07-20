@@ -5,7 +5,7 @@ Candy: Self-driving in Carla Environment.
 
 What is candy? A model with the structure: Hierarchical Observation -- Plan&Policy -- Hierarchical Actions
 
-We use VAE/GAN/Glow for world representation, and do RL, IL, Planning, MCTS upon it.
+We use VAE/GAN/Glow for world representation, and do RL/IL/Planning/MCTS upon it.
 
 
 ## VAE Demo
@@ -56,7 +56,7 @@ Reconstructed: (With hidden state of size 50, running for 1 hour)
 
 
 ## Candy Features
-* Combining imitation learning and reinforcement learning.
+* Combining imitation learning and reinforcement learning. Candy can learn make its first turn in 40 minutes from scratch (randomize policy network).
 * VAE unsupervised learning for world model construction.
 * Persistent training process and flexible architecture.
 
@@ -64,29 +64,29 @@ Reconstructed: (With hidden state of size 50, running for 1 hour)
 - [x] Depth, framestack as input.
 - [x] Prioritized replay for better VAE learning.
 - [x] PPO.
+- [x] Imitation learning.
 - [ ] Visualize parameter transition.
 - [ ] Distributed.
-- [ ] Map data auxilary task, using part of the hidden state.
+- [ ] What & Where correspondence. Map data as auxilary task, using part of the hidden state.
 - [ ] Implement MCTS.
 - [ ] Auxilary tasks.
 - [ ] Openai Glow?
 - [ ] Speed, Depth, Orientation as inputs.
 - [ ] Stop when collision.
-- [ ] Policy embedding? Curiosity, Attention, Memory ?
+- [ ] Policy embedding? Curiosity, Attention, Memory?
 - [ ] The ability of planning
 - [ ] World model: Math representation, Language acuisition
 - [ ] Attentional VAE
 - [ ] Attention for Representation explanation.
 
-
 ## Ideal Features
-* Traffic Rules Learning.
-* Guide command following.
+* Traffic rules learning.
+* Guiding commands following.
 
 ## Code Components
 * main.py: Main file. It Deals with Carla environment.
 * carla_wrapper.py: Wrap main.py, buffer information for the model.
-* persistence.py: Main model file. It is for building the big graph of the model.
-* modules/* : Building blocks of the model, used in persistence.py.
+* candy_model.py: Main model file. It is for building the big graph of the model.
+* modules/* : Building blocks of the model, used in candy_model.py.
 
 

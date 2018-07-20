@@ -1,4 +1,4 @@
-from persistence import Machine
+from candy_model import Machine
 import numpy as np
 import yaml
 
