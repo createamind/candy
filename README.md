@@ -8,7 +8,16 @@ What is candy? A model with the structure: Hierarchical Observation -- Plan&Poli
 We use VAE/GAN/Glow for world representation, and do RL/IL/Planning/MCTS upon it.
 
 
-## VAE Demo
+## Demo
+
+### Performance
+
+Car drifting (more to be uploaded):
+
+<img src="https://github.com/createamind/candy/blob/master/screenshots/drift.gif" width="300" style="display:inline"/>
+
+### VAE
+
 Real:
 
 <div>

@@ -151,6 +151,8 @@ class Carla_Wrapper(object):
 
 		action = self.analyze_control(control)
 		std_action = self.analyze_control(std_control)
+		if std_action == 0:
+			manual = False
 		return obs, reward, action, std_action, manual
 		
 

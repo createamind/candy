@@ -23,7 +23,7 @@ Use ARROWS or WASD keys for control.
     R            : restart level
     1-9            : set reward
     n            : disable imitation learning
-    m            : enable imitation learning
+    m            : enable imitation learning(default)
     t            : toggle display
     c            : toggle model control
     v            : reset now
@@ -99,7 +99,7 @@ def make_carla_settings(args):
     settings.set(
         SynchronousMode=True,
         SendNonPlayerAgentsInfo=True,
-        NumberOfVehicles=50,
+        NumberOfVehicles=25,
         NumberOfPedestrians=50,
         WeatherId=random.choice([1, 3, 7, 8, 14]),
         QualityLevel=args.quality_level)
@@ -170,7 +170,7 @@ class CarlaGame(object):
         self._main_image = None
         self._mini_view_image1 = None
         self._mini_view_image2 = None
-        self._enable_autopilot = True
+        self._enable_autopilot = False
         self._lidar_measurement = None
         self._map_view = None
         self._is_on_reverse = False
@@ -228,7 +228,7 @@ class CarlaGame(object):
         scene = self.client.load_settings(self._carla_settings)
         number_of_player_starts = len(scene.player_start_spots)
         player_start = np.random.randint(number_of_player_starts)
-        player_start = 81
+        # player_start = 81
         print('Starting new episode...')
         self.client.start_episode(player_start)
         self._timer = Timer()
@@ -324,7 +324,8 @@ class CarlaGame(object):
         else:
             self.client.send_control(model_control)
 
-        if self.endnow or (self.cnt > 10 and (self.cnt > BUFFER_LIMIT or collision > 0 or measurements.player_measurements.intersection_offroad > 0.2 or measurements.player_measurements.intersection_otherlane > 0.2)):
+        # if self.endnow or (self.cnt > 10 and (self.cnt > BUFFER_LIMIT or collision > 0 or measurements.player_measurements.intersection_offroad > 0.8 or measurements.player_measurements.intersection_otherlane > 0.8)):
+        if self.endnow or (self.cnt > 10 and (self.cnt > BUFFER_LIMIT or collision > 0)):
             self.carla_wrapper.post_process([measurements, sensor_data, model_control, -1, collision, control, self.manual], self.cnt)
             self.cnt = 0
             self.endnow = False
@@ -343,8 +344,8 @@ class CarlaGame(object):
     
     def calculate_reward(self, measurements, reward, collision):
         
-        speed = abs(measurements.player_measurements.forward_speed) * 3.6
-
+        speed = measurements.player_measurements.forward_speed * 3.6 if measurements.player_measurements.forward_speed > 0 else 0
+        
         # collision = measurements.player_measurements.collision_vehicles + measurements.player_measurements.collision_pedestrians + measurements.player_measurements.collision_other
 
         # intersection = measurements.player_measurements.intersection_otherlane + measurements.player_measurements.intersection_offroad
