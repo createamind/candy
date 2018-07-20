@@ -25,7 +25,7 @@ Use ARROWS or WASD keys for control.
     n            : disable imitation learning
     m            : enable imitation learning(default)
     t            : toggle display
-    c            : toggle model control
+    c            : toggle model control(Default: model control the car. You may change it into manual control)
     v            : reset now
 
 STARTING in a moment...
