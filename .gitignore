@@ -7,14 +7,14 @@ refs/
 __pycache__/
 *.py[cod]
 *$py.class
-
-z.tmp
+visualize.png
 # C extensions
 *.so
-
+nohup.out
 # Distribution / packaging
 .Python
 build/
+z.tmp
 develop-eggs/
 dist/
 downloads/
@@ -23,6 +23,7 @@ eggs/
 lib/
 lib64/
 parts/
+visualize.png
 sdist/
 var/
 wheels/
