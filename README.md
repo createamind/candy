@@ -16,7 +16,7 @@ Real:
     <img src="https://github.com/createamind/candy/blob/master/screenshots/real2.png" width="250" style="display:inline"/>
 </div>
 
-Reconstructed: (With hidden state of size 50, running for 1 hour)
+Reconstructed: (With hidden state of size 50, running for 1 hour on a single GTX1080Ti)
 
 <div>
     <img src="https://github.com/createamind/candy/blob/master/screenshots/reconstruct1.png" width="250" style="display:inline"/>
@@ -56,7 +56,7 @@ Reconstructed: (With hidden state of size 50, running for 1 hour)
 
 
 ## Candy Features
-* Combining imitation learning and reinforcement learning. Candy can learn make its first turn in 40 minutes from scratch (randomize policy network).
+* Combining imitation learning and reinforcement learning. Candy can learn make its first turn in 40 minutes(Single GTX1080Ti) from scratch (randomize policy network).
 * VAE unsupervised learning for world model construction.
 * Persistent training process and flexible architecture.
 
