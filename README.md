@@ -74,23 +74,26 @@ Reconstructed: (With hidden state of size 50, running for 1 hour on a single GTX
 - [x] Prioritized replay for better VAE learning.
 - [x] PPO.
 - [x] Imitation learning.
+- [x] Stop when collide.
 - [ ] Visualize parameter transition.
-- [ ] Distributed.
+- [ ] Distributed data collection.
 - [ ] What & Where correspondence. Map data as auxilary task, using part of the hidden state.
+- [ ] World recurrent transition model.
+- [ ] Guiding commands following. (Or integrate with map)
+- [ ] Traffic rules learning: Traffic Lights.
+- [ ] Traffic rules learning: Signs.
 - [ ] Implement MCTS.
 - [ ] Auxilary tasks.
 - [ ] Openai Glow?
 - [ ] Speed, Depth, Orientation as inputs.
-- [ ] Stop when collision.
 - [ ] Policy embedding? Curiosity, Attention, Memory?
 - [ ] The ability of planning
-- [ ] World model: Math representation, Language acuisition
+- [ ] Math representation, Language acuisition
 - [ ] Attentional VAE
 - [ ] Attention for Representation explanation.
 
 ## Ideal Features
-* Traffic rules learning.
-* Guiding commands following.
+
 
 ## Code Components
 * main.py: Main file. It Deals with Carla environment.
