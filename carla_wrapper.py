@@ -15,9 +15,9 @@ import os
 
 # BUFFER_LIMIT = 258
 BATCH_SIZE = 64
-KEEP_CNT = 1000
+KEEP_CNT = 2000
 MAX_SAVE = 0
-TRAIN_EPOCH = 50
+TRAIN_EPOCH = 100
 
 class Carla_Wrapper(object):
 
@@ -232,10 +232,10 @@ class Carla_Wrapper(object):
 		# if pretrain:          
 		# 	self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states = [],[],[],[],[],[],[]
 
-		# if len(self.obs) > KEEP_CNT:
-		# 	rem = len(self.obs) - KEEP_CNT
-		# 	self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states = \
-		# 		self.obs[rem:],self.actions[rem:],self.values[rem:],self.neglogpacs[rem:],self.rewards[rem:],self.vaerecons[rem:], self.states[rem:]
+		if len(self.obs) > KEEP_CNT:
+			rem = len(self.obs) - KEEP_CNT
+			self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states, self.std_actions, self.manual = \
+				self.obs[rem:],self.actions[rem:],self.values[rem:],self.neglogpacs[rem:],self.rewards[rem:],self.vaerecons[rem:], self.states[rem:], self.std_actions[rem:], self.manual[rem:]
 
 	def decode_control(self, cod):
 		control = VehicleControl()

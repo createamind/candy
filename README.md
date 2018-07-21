@@ -77,6 +77,8 @@ Reconstructed: (With hidden state of size 50, running for 1 hour on a single GTX
 - [x] Stop when collide.
 - [ ] Visualize parameter transition.
 - [ ] Distributed data collection.
+- [ ] Lidar!
+- [ ] Test Strategy?
 - [ ] What & Where correspondence. Map data as auxilary task, using part of the hidden state.
 - [ ] World recurrent transition model.
 - [ ] Guiding commands following. (Or integrate with map)
