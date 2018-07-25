@@ -72,8 +72,11 @@ class VAE():
 
 	def optimize(self, loss):
 		self.opt = tf.train.AdamOptimizer(learning_rate=self.args[self.name]['learning_rate'])
-		gvs = self.opt.compute_gradients(loss, var_list=tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.name))
-		# gvs = [(tf.clip_by_norm(grad, 5), var) for grad, var in gvs if not grad is None]
+		gvs = self.opt.compute_gradients(loss, var_list=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.name))
+		# for grad, var in gvs:
+		# 	if grad is not None:
+		# 		tf.summary.histogram(var.op.name + '/gradients', grad)
+		gvs = [(tf.clip_by_norm(grad, 5), var) for grad, var in gvs]
 		opt_op = self.opt.apply_gradients(gvs)
 		return opt_op
 
@@ -169,8 +172,11 @@ class VAEVisualize():
 
 	def optimize(self, loss):
 		self.opt = tf.train.AdamOptimizer(learning_rate=self.args[self.name]['learning_rate'])
-		gvs = self.opt.compute_gradients(loss, var_list=tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.name))
-		# gvs = [(tf.clip_by_norm(grad, 5), var) for grad, var in gvs if not grad is None]
+		gvs = self.opt.compute_gradients(loss, var_list=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.name))
+		# for grad, var in gvs:
+		# 	if grad is not None:
+		# 		tf.summary.histogram(var.op.name + '/gradients', grad)
+		gvs = [(tf.clip_by_norm(grad, 5), var) for grad, var in gvs]
 		opt_op = self.opt.apply_gradients(gvs)
 		return opt_op
 

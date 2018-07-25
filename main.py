@@ -91,7 +91,7 @@ WINDOW_WIDTH = 500
 WINDOW_HEIGHT = 500
 MINI_WINDOW_WIDTH = 200
 MINI_WINDOW_HEIGHT = 200
-BUFFER_LIMIT = 1028
+BUFFER_LIMIT = 258
 
 def make_carla_settings(args):
     """Make a CarlaSettings object with the settings we need."""
@@ -170,7 +170,7 @@ class CarlaGame(object):
         self._main_image = None
         self._mini_view_image1 = None
         self._mini_view_image2 = None
-        self._enable_autopilot = True
+        self._enable_autopilot = False
         self._lidar_measurement = None
         self._map_view = None
         self._is_on_reverse = False
@@ -317,6 +317,9 @@ class CarlaGame(object):
         #     self.ucnt += 1
         #     control = self.prev_control
 
+        # print(measurements.player_measurements.transform.rotation)
+        # print(measurements.player_measurements.transform.location)
+        # print(measurements.player_measurements.transform.orientation)
         print(control)
         print(model_control)
 
@@ -325,7 +328,7 @@ class CarlaGame(object):
         else:
             self.client.send_control(model_control)
 
-        if self.endnow or (self.cnt > 10 and (self.cnt > BUFFER_LIMIT or collision > 0 or measurements.player_measurements.intersection_offroad > 0.2 or measurements.player_measurements.intersection_otherlane > 0.2)):
+        if self.endnow or (self.cnt > 10 and (self.cnt > BUFFER_LIMIT or collision > 0 or measurements.player_measurements.intersection_offroad > 0.8 or measurements.player_measurements.intersection_otherlane > 0.8)):
         # if self.endnow or (self.cnt > 10 and (self.cnt > BUFFER_LIMIT or collision > 0)):
             self.carla_wrapper.post_process([measurements, sensor_data, model_control, -1, collision, control, self.manual], self.cnt)
             self.cnt = 0
@@ -481,23 +484,53 @@ class CarlaGame(object):
         #     self._display.blit(
         #         surface, (2 * gap_x + MINI_WINDOW_WIDTH, mini_image_y))
 
-        if self._lidar_measurement is not None:
-            lidar_data = np.array(self._lidar_measurement.data[:, :2])
-            lidar_data *= 2.0
-            lidar_data += 100.0
-            lidar_data = np.fabs(lidar_data)
-            lidar_data = lidar_data.astype(np.int32)
-            lidar_data = np.reshape(lidar_data, (-1, 2))
-            #draw lidar
-            lidar_img_size = (200, 200, 3)
-            lidar_img = np.zeros(lidar_img_size)
-            lidar_img[tuple(lidar_data.T)] = (255, 255, 255)
-            surface = pygame.surfarray.make_surface(lidar_img)
-            self._display.blit(surface, (10, 10))
+        # if self._lidar_measurement is not None:
+        #     lidar_data = np.array(self._lidar_measurement.data[:, :2])
+        #     lidar_data *= 2.0
+        #     lidar_data += 100.0
+        #     lidar_data = np.fabs(lidar_data)
+        #     lidar_data = lidar_data.astype(np.int32)
+        #     lidar_data = np.reshape(lidar_data, (-1, 2))
+        #     #draw lidar
+        #     lidar_img_size = (200, 200, 3)
+        #     lidar_img = np.zeros(lidar_img_size)
+        #     lidar_img[tuple(lidar_data.T)] = (255, 255, 255)
+        #     surface = pygame.surfarray.make_surface(lidar_img)
+        #     self._display.blit(surface, (10, 10))
+
+        # if self._map_view is not None:
+        #     array = self._map_view
+        #     array = array[:, :, :3]
+
+        #     new_window_width = \
+        #         (float(WINDOW_HEIGHT) / float(self._map_shape[0])) * \
+        #         float(self._map_shape[1])
+        #     surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
+
+        #     w_pos = int(self._position[0]*(float(WINDOW_HEIGHT)/float(self._map_shape[0])))
+        #     h_pos = int(self._position[1] *(new_window_width/float(self._map_shape[1])))
+
+        #     pygame.draw.circle(surface, [255, 0, 0, 255], (w_pos, h_pos), 6, 0)
+        #     for agent in self._agent_positions:
+        #         if agent.HasField('vehicle'):
+        #             agent_position = self._map.convert_to_pixel([
+        #                 agent.vehicle.transform.location.x,
+        #                 agent.vehicle.transform.location.y,
+        #                 agent.vehicle.transform.location.z])
+
+        #             w_pos = int(agent_position[0]*(float(WINDOW_HEIGHT)/float(self._map_shape[0])))
+        #             h_pos = int(agent_position[1] *(new_window_width/float(self._map_shape[1])))
+
+        #             pygame.draw.circle(surface, [255, 0, 255, 255], (w_pos, h_pos), 4, 0)
+
+        #     self._display.blit(surface, (WINDOW_WIDTH, 0))
 
         if self._map_view is not None:
             array = self._map_view
             array = array[:, :, :3]
+
+            print(np.array(array).shape)
+            print(self._map_shape)
 
             new_window_width = \
                 (float(WINDOW_HEIGHT) / float(self._map_shape[0])) * \

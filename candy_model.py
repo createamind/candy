@@ -145,6 +145,9 @@ class Machine(object):
 		total_loss = self.loss_parts
 		tf.summary.scalar('total_loss', tf.reduce_mean(total_loss))
 
+		for var in tf.trainable_variables():
+			tf.summary.histogram(var.op.name, var)
+	
 		self.final_ops = []
 		for part in self.variable_parts:
 			self.final_ops.append(part.optimize(total_loss))
