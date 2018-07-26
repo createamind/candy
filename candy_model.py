@@ -61,7 +61,7 @@ class Machine(object):
 		# z = tf.Print(z, [z[0]], summarize=15)
 		# test_z = tf.Print(test_z, [test_z[0]], summarize=20)
 
-		self.ppo = PPO(args, 'ppo', z=z, test_z=test_z, ent_coef=.01, vf_coef=0.5, max_grad_norm=0.5)
+		self.ppo = PPO(args, 'ppo', z=z, test_z=test_z, ent_coef=.01, vf_coef=1, max_grad_norm=0.5)
 
 		self.test_vae_loss.inference()
 		# z = self.c3d_encoder.inference()

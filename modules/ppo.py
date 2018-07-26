@@ -93,30 +93,56 @@ class PPO(object):
 		self.OLDNEGLOGPAC = OLDNEGLOGPAC
 		self.OLDVPRED = OLDVPRED
 
+
 		neglogpac = train_model.pd.neglogp(A)
 		entropy = tf.reduce_mean(train_model.pd.entropy())
-
 		vpred = train_model.vf
-		vpredclipped = OLDVPRED + tf.clip_by_value(train_model.vf - OLDVPRED, - CLIPRANGE, CLIPRANGE)
-		vf_losses1 = tf.square(vpred - R)
-		vf_losses2 = tf.square(vpredclipped - R)
-		vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
-		ratio = tf.exp(OLDNEGLOGPAC - neglogpac)
-		pg_losses = -ADV * ratio
-		pg_losses2 = -ADV * tf.clip_by_value(ratio, 1.0 - CLIPRANGE, 1.0 + CLIPRANGE)
-		pg_loss = tf.reduce_mean(tf.maximum(pg_losses, pg_losses2))
-		approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - OLDNEGLOGPAC))
-		clipfrac = tf.reduce_mean(tf.to_float(tf.greater(tf.abs(ratio - 1.0), CLIPRANGE)))
-		loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef
+
+
+		advantages = self.R - self.OLDVPRED
+
+
+		mean, var = tf.nn.moments(advantages, axes=[0])
+
+		advantages = (advantages - mean) / (tf.sqrt(var) + 1e-5)
+
+
+		# observation, action, log_prob, reward, adv_targ, states = sample
+		#     # Reshape to do in a single forward pass for all steps
+		# _, action_log_probs, dist_entropy, values = self.actor_critic(None, obs=observation, actions=action, states=states, train=True)
+		
+		dist_entropy = tf.reduce_mean(train_model.pd.entropy())
+		ratio = tf.exp(- neglogpac + self.OLDNEGLOGPAC)
+		surr1 = ratio * advantages
+		surr2 = tf.clip_by_value(ratio, 1.0 - CLIPRANGE,
+									1.0 + CLIPRANGE) * advantages
+		print(surr1)			
+		action_loss = -tf.reduce_mean(tf.minimum(surr1, surr2))
+		print(action_loss)			
+		value_loss = tf.reduce_mean((self.R - vpred) * (self.R - vpred))
+
+		loss = (value_loss * vf_coef + action_loss - dist_entropy * ent_coef)
+
+		# vpredclipped = OLDVPRED + tf.clip_by_value(train_model.vf - OLDVPRED, - CLIPRANGE, CLIPRANGE)
+		# vf_losses1 = tf.square(vpred - R)
+		# vf_losses2 = tf.square(vpredclipped - R)
+		# vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
+		# ratio = tf.exp(OLDNEGLOGPAC - neglogpac)
+		# pg_losses = -ADV * ratio
+		# pg_losses2 = -ADV * tf.clip_by_value(ratio, 1.0 - CLIPRANGE, 1.0 + CLIPRANGE)
+		# pg_loss = tf.reduce_mean(tf.maximum(pg_losses, pg_losses2))
+		# approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - OLDNEGLOGPAC))
+		# clipfrac = tf.reduce_mean(tf.to_float(tf.greater(tf.abs(ratio - 1.0), CLIPRANGE)))
+		# loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef
 
 		imitation_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.pi, labels=self.std_action)
 		imitation_loss = tf.reduce_mean(tf.boolean_mask(imitation_loss, self.std_mask))
 		imitation_loss = tf.where(tf.is_nan(imitation_loss), tf.zeros_like(imitation_loss), imitation_loss)
 		loss = loss + self.args['imitation_coefficient'] * imitation_loss
-
-		tf.summary.scalar('pgloss', pg_loss)
-		tf.summary.scalar('vfloss', vf_loss)
-		tf.summary.scalar('entropyloss', entropy)
+ 
+		tf.summary.scalar('actionloss', action_loss)
+		tf.summary.scalar('valueloss', value_loss)
+		tf.summary.scalar('entropyloss', dist_entropy)
 		tf.summary.scalar('imitation_loss', imitation_loss)
 		# with tf.variable_scope('model'):
 		#     params = tf.trainable_variables()

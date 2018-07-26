@@ -17,7 +17,7 @@ import os
 BATCH_SIZE = 128
 KEEP_CNT = 1500
 MAX_SAVE = 0
-TRAIN_EPOCH = 20
+TRAIN_EPOCH = 5
 
 class Carla_Wrapper(object):
 
@@ -78,6 +78,50 @@ class Carla_Wrapper(object):
 		return [t1, t2, t3]
 
 
+	# def update_reward(self, cnt, obs, action):
+	# 	_, last_values, _, _, _ = self.machine.value(obs, self.state, action)
+
+	# 	#discount/bootstrap off value fn
+	# 	self.advs = np.zeros_like(self.rewards)
+	# 	# self.rewards[-1] = reward
+	# 	# print(' '.join([('%.2f' % i)for i in self.rewards]))
+	# 	l = len(self.obs)
+	# 	lastgaelam = 0
+	# 	for t in reversed(range(l - cnt, l)):
+	# 		if t == l - 1:
+	# 			nextvalues = last_values
+	# 		else:
+	# 			nextvalues = self.values[t+1]
+	# 		delta = self.rewards[t] + self.gamma * nextvalues - self.values[t]
+	# 		self.advs[t] = lastgaelam = delta + self.gamma * self.lam * lastgaelam
+	# 	for t in range(l - cnt, l):
+	# 		self.rewards[t] = float(self.advs[t] + self.values[t])
+
+	def update_reward(self, cnt, obs, action):
+
+		# #discount/bootstrap off value fn
+		# self.advs = np.zeros_like(self.rewards)
+		# # self.rewards[-1] = reward
+		# # print(' '.join([('%.2f' % i)for i in self.rewards]))
+		# lastgaelam = 0
+		# for t in reversed(range(l - cnt, l)):
+		# 	if t == l - 1:
+		# 		nextvalues = last_values
+		# 	else:
+		# 		nextvalues = self.values[t+1]
+		# 	delta = self.rewards[t] + self.gamma * nextvalues - self.values[t]
+		# 	self.advs[t] = lastgaelam = delta + self.gamma * self.lam * lastgaelam
+
+		l = len(self.obs)
+		self.rewards[l] *= 20
+		for t in reversed(range(l - cnt, l - 1)):
+			self.rewards[t] += self.lam * self.rewards[t+1]
+		for t in range(l - cnt ,l):
+			self.rewards[t] /= 20
+
+		print(self.rewards)
+
+
 	def post_process(self, inputs, cnt):
 
 		obs, reward, action, std_action, manual = self.pre_process(inputs)
@@ -91,23 +135,7 @@ class Carla_Wrapper(object):
 		# self.vaerecons = np.asarray(self.vaerecons, dtype=np.float32)
 		# self.states = np.asarray(self.states, dtype=np.float32)
 
-		_, last_values, _, _, _ = self.machine.value(obs, self.state, action)
-
-		#discount/bootstrap off value fn
-		self.advs = np.zeros_like(self.rewards)
-		# self.rewards[-1] = reward
-		# print(' '.join([('%.2f' % i)for i in self.rewards]))
-		l = len(self.obs)
-		lastgaelam = 0
-		for t in reversed(range(l - cnt, l)):
-			if t == l - 1:
-				nextvalues = last_values
-			else:
-				nextvalues = self.values[t+1]
-			delta = self.rewards[t] + self.gamma * nextvalues - self.values[t]
-			self.advs[t] = lastgaelam = delta + self.gamma * self.lam * lastgaelam
-		for t in range(l - cnt, l):
-			self.rewards[t] = float(self.advs[t] + self.values[t])
+		self.update_reward(cnt, obs, action)
 
 		# print(' '.join([('%.2f' % i)for i in self.rewards]))
 
