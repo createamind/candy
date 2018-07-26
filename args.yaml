@@ -6,7 +6,7 @@ vae:
     learning_rate: 0.0002
     weight_decay: 0.001
 ppo:
-    learning_rate: 0.0005
+    learning_rate: 0.0007
     weight_decay: 0.001
 raw_image:
     learning_rate: 0.00000000000001

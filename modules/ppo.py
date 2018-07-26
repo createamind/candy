@@ -111,7 +111,7 @@ class PPO(object):
 
 		imitation_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.pi, labels=self.std_action)
 		imitation_loss = tf.reduce_mean(tf.boolean_mask(imitation_loss, self.std_mask))
-
+		imitation_loss = tf.where(tf.is_nan(imitation_loss), tf.zeros_like(imitation_loss), imitation_loss)
 		loss = loss + self.args['imitation_coefficient'] * imitation_loss
 
 		tf.summary.scalar('pgloss', pg_loss)

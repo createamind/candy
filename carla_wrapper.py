@@ -17,7 +17,7 @@ import os
 BATCH_SIZE = 128
 KEEP_CNT = 1500
 MAX_SAVE = 0
-TRAIN_EPOCH = 100
+TRAIN_EPOCH = 20
 
 class Carla_Wrapper(object):
 
@@ -95,8 +95,8 @@ class Carla_Wrapper(object):
 
 		#discount/bootstrap off value fn
 		self.advs = np.zeros_like(self.rewards)
-		self.rewards[-1] = reward
-		print(' '.join([('%.2f' % i)for i in self.rewards]))
+		# self.rewards[-1] = reward
+		# print(' '.join([('%.2f' % i)for i in self.rewards]))
 		l = len(self.obs)
 		lastgaelam = 0
 		for t in reversed(range(l - cnt, l)):
@@ -199,7 +199,7 @@ class Carla_Wrapper(object):
 		# 	self.memory_training(pretrain=True)
 
 	def calculate_difficulty(self, reward, vaerecon):
-		return vaerecon
+		return abs(reward)
 		
 	def memory_training(self, pretrain=False):
 		l = len(self.obs)
@@ -207,13 +207,16 @@ class Carla_Wrapper(object):
 		difficulty = []
 		for i in range(l):
 			batch.append([self.obs[i], self.actions[i], self.values[i], self.neglogpacs[i], self.rewards[i], self.vaerecons[i], self.states[i], self.std_actions[i], self.manual[i]])
-			difficulty.append(self.calculate_difficulty(self.rewards[i], self.vaerecons[i]))
-
+			difficulty.append(self.calculate_difficulty(self.rewards[i] - self.values[i][0], self.vaerecons[i]))
+		# print(self.rewards)
+		# print(self.values)
+		# print(np.array(self.rewards) - np.array([i[0] for i in self.values]))
 		difficulty = np.array(difficulty)
 		print(difficulty[:20])
 		def softmax(x):
+			x = np.clip(x, -1, 1)
 			return np.exp(x) / np.sum(np.exp(x), axis=0)
-		difficulty = softmax(difficulty * 100)
+		difficulty = softmax(difficulty * 5)
 		print(difficulty[:20])
 		print("Memory Extraction Done.")
 

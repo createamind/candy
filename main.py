@@ -328,7 +328,7 @@ class CarlaGame(object):
         else:
             self.client.send_control(model_control)
 
-        if self.endnow or (self.cnt > 10 and (self.cnt > BUFFER_LIMIT or collision > 0 or measurements.player_measurements.intersection_offroad > 0.8 or measurements.player_measurements.intersection_otherlane > 0.8)):
+        if self.endnow or (self.cnt > 10 and (self.cnt > BUFFER_LIMIT or collision > 0 or measurements.player_measurements.intersection_offroad > 0.95 or measurements.player_measurements.intersection_otherlane > 0.95)):
         # if self.endnow or (self.cnt > 10 and (self.cnt > BUFFER_LIMIT or collision > 0)):
             self.carla_wrapper.post_process([measurements, sensor_data, model_control, -1, collision, control, self.manual], self.cnt)
             self.cnt = 0
@@ -359,7 +359,7 @@ class CarlaGame(object):
         # print('speed = ' + str(speed) + 'collision = ' + str(collision) + 'intersection = ' + str(intersection))
 
         if reward is None:
-            reward = (speed / 2.0 - collision / 50 - intersection * 100) / 100.0
+            reward = (15 - abs(speed - 30) / 2.0 - collision / 50 - intersection * 100) / 100.0
 
         return reward, [speed, collision, intersection]
         

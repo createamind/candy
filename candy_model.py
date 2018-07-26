@@ -238,9 +238,8 @@ class Machine(object):
 		# print(raw_image.shape)
 		# print(speed.shape)
 
-
 		advs = rewards - values
-		advs = (advs - advs.mean()) / (advs.std() + 1e-8)
+		advs = (advs - advs.mean()) / (advs.std() + 1e-5)
 
 		td_map = {self.ppo.A:actions, self.ppo.ADV:advs, self.ppo.R:rewards, self.ppo.OLDNEGLOGPAC:neglogpacs, self.ppo.OLDVPRED:values}
 
