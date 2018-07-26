@@ -52,8 +52,8 @@ class Machine(object):
 		test_recon_x, test_z, test_logsigma = self.test_vae.inference()
 		self.test_vae_loss = VAELoss(args, 'vae', test_recon_x, self.test_raw_image, test_z, test_logsigma)
 
-		z = tf.concat([z, self.speed], 1)
-		test_z = tf.concat([test_z, self.test_speed], 1)
+		# z = tf.concat([z, self.speed], 1)
+		# test_z = tf.concat([test_z, self.test_speed], 1)
 
 		z = tf.clip_by_value(z, -5, 5)
 		test_z = tf.clip_by_value(test_z, -5, 5)
@@ -61,7 +61,7 @@ class Machine(object):
 		# z = tf.Print(z, [z[0]], summarize=15)
 		# test_z = tf.Print(test_z, [test_z[0]], summarize=20)
 
-		self.ppo = PPO(args, 'ppo', z=z, test_z=test_z, ent_coef=.01, vf_coef=1, max_grad_norm=0.5)
+		self.ppo = PPO(args, 'ppo', z=z, test_z=test_z, ent_coef=0.00000001, vf_coef=1, max_grad_norm=0.5)
 
 		self.test_vae_loss.inference()
 		# z = self.c3d_encoder.inference()

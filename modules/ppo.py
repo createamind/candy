@@ -12,12 +12,12 @@ from baselines.common.distributions import make_pdtype
 
 from tensorflow.contrib import rnn
 
-HIDDEN = 16
+HIDDEN = 15
 
 
 class LstmPolicy(object):
 
-	def __init__(self, args, name, X, nbatch, nsteps, nlstm=20, reuse=False):
+	def __init__(self, args, name, X, nbatch, nsteps, nlstm=10, reuse=False):
 		nenv = nbatch // nsteps
 		self.args = args
 		self.name = name
@@ -95,7 +95,7 @@ class PPO(object):
 
 
 		neglogpac = train_model.pd.neglogp(A)
-		entropy = tf.reduce_mean(train_model.pd.entropy())
+		# entropy = tf.reduce_mean(train_model.pd.entropy())
 		vpred = train_model.vf
 
 
@@ -106,7 +106,7 @@ class PPO(object):
 
 		advantages = (advantages - mean) / (tf.sqrt(var) + 1e-5)
 
-
+		# advantages = tf.Print(advantages, [advantages], summarize=20)
 		# observation, action, log_prob, reward, adv_targ, states = sample
 		#     # Reshape to do in a single forward pass for all steps
 		# _, action_log_probs, dist_entropy, values = self.actor_critic(None, obs=observation, actions=action, states=states, train=True)
@@ -116,9 +116,9 @@ class PPO(object):
 		surr1 = ratio * advantages
 		surr2 = tf.clip_by_value(ratio, 1.0 - CLIPRANGE,
 									1.0 + CLIPRANGE) * advantages
-		print(surr1)			
+		# print(surr1)			
 		action_loss = -tf.reduce_mean(tf.minimum(surr1, surr2))
-		print(action_loss)			
+		# print(action_loss)			
 		value_loss = tf.reduce_mean((self.R - vpred) * (self.R - vpred))
 
 		loss = (value_loss * vf_coef + action_loss - dist_entropy * ent_coef)

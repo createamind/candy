@@ -330,7 +330,8 @@ class CarlaGame(object):
 
         if self.endnow or (self.cnt > 10 and (self.cnt > BUFFER_LIMIT or collision > 0 or measurements.player_measurements.intersection_offroad > 0.95 or measurements.player_measurements.intersection_otherlane > 0.95)):
         # if self.endnow or (self.cnt > 10 and (self.cnt > BUFFER_LIMIT or collision > 0)):
-            self.carla_wrapper.post_process([measurements, sensor_data, model_control, -1, collision, control, self.manual], self.cnt)
+            rewardlala = -1 if (collision > 0 or measurements.player_measurements.intersection_offroad > 0.95 or measurements.player_measurements.intersection_otherlane > 0.95) else None
+            self.carla_wrapper.post_process([measurements, sensor_data, model_control, rewardlala, collision, control, self.manual], self.cnt)
             self.cnt = 0
             self.endnow = False
         else:
@@ -354,7 +355,7 @@ class CarlaGame(object):
 
         # intersection = measurements.player_measurements.intersection_otherlane + measurements.player_measurements.intersection_offroad
         
-        intersection = measurements.player_measurements.intersection_offroad
+        intersection = measurements.player_measurements.intersection_offroad + measurements.player_measurements.intersection_otherlane
         
         # print('speed = ' + str(speed) + 'collision = ' + str(collision) + 'intersection = ' + str(intersection))
 
@@ -529,8 +530,8 @@ class CarlaGame(object):
             array = self._map_view
             array = array[:, :, :3]
 
-            print(np.array(array).shape)
-            print(self._map_shape)
+            # print(np.array(array).shape)
+            # print(self._map_shape)
 
             new_window_width = \
                 (float(WINDOW_HEIGHT) / float(self._map_shape[0])) * \
