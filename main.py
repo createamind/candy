@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 # Copyright (c) 2017 Computer Vision Center (CVC) at the Universitat Autonoma de
 # Barcelona (UAB).
@@ -184,11 +185,11 @@ class CarlaGame(object):
         random.seed(datetime.datetime.now())
         self.manual = True
         self.manual_control = (random.randint(1,1000) == 1)
-        self.cnt = 0
+        self.cnt = 0 #与buffer_limit进行比较，控制训练的切换
         self.history_collision = 0
         self.ucnt = 0
         self.prev_control = None
-        self.endnow = False
+        self.endnow = False　#按下v会置为True，立刻进行ｔｒａｉｎｉｎｇ
 
 
         self.carla_wrapper = wrapper
@@ -202,8 +203,8 @@ class CarlaGame(object):
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         return
-                self._on_loop()
-                self._on_render()
+                self._on_loop() #整个模型与carla交互.
+                self._on_render() #pygame展示
         finally:
             pygame.quit()
 
@@ -247,10 +248,10 @@ class CarlaGame(object):
         # self._human_image = sensor_data.get('CameraForHuman', None)
 
 
-        collision = self.get_collision(measurements)
+        collision = self.get_collision(measurements) #得到瞬时的碰撞
 
-        control, reward = self._get_keyboard_control(pygame.key.get_pressed())
-        reward, _ = self.calculate_reward(measurements, reward, collision)
+        control, manual_reward = self._get_keyboard_control(pygame.key.get_pressed()) #得到键盘的输入，以及键盘输入的reward
+        reward, _ = self.calculate_reward(measurements, manual_reward, collision) #计算reward，如果键盘没有reward
 
 
         # Print measurements every second.
@@ -298,7 +299,7 @@ class CarlaGame(object):
 
         # if self.prev_control is None or self.ucnt == 5:
 
-        if self._enable_autopilot:
+        if self._enable_autopilot: #系统自带的自动驾驶
             control = measurements.player_measurements.autopilot_control
 
 
@@ -323,25 +324,30 @@ class CarlaGame(object):
         print(control)
         print(model_control)
 
-        if self.manual_control:
+        if self.manual_control:#用ｃ切换的
             self.client.send_control(control)
         else:
             self.client.send_control(model_control)
 
-        if self.endnow or (self.cnt > 10 and (self.cnt > BUFFER_LIMIT or collision > 0 or measurements.player_measurements.intersection_offroad > 0.95 or measurements.player_measurements.intersection_otherlane > 0.95)):
+        #控制什么时候进行ｔｒａｉｎｉｎｇ
+        if self.endnow or (self.cnt > 10 and (self.cnt > BUFFER_LIMIT or collision > 0 or measurements.player_measurements.intersection_offroad > 0.95\
+         or measurements.player_measurements.intersection_otherlane > 0.95)):
         # if self.endnow or (self.cnt > 10 and (self.cnt > BUFFER_LIMIT or collision > 0)):
+            #总结这段时间的情况，调用training
             self.carla_wrapper.post_process([measurements, sensor_data, model_control, -1, collision, control, self.manual], self.cnt)
             self.cnt = 0
             self.endnow = False
         else:
+            #不应该进行trainging
             self.cnt += 1
             self.endnow = False
+            #记录当前步的状况
             self.carla_wrapper.update([measurements, sensor_data, model_control, reward, collision, control, self.manual])
 
 
     def get_collision(self, measurements):
         new_collision = measurements.player_measurements.collision_vehicles + measurements.player_measurements.collision_pedestrians + measurements.player_measurements.collision_other
-        ans = new_collision - self.history_collision
+        ans = new_collision - self.history_collision #得到瞬时值　累加值的差
         self.history_collision = new_collision
         return ans
 
@@ -354,12 +360,14 @@ class CarlaGame(object):
 
         # intersection = measurements.player_measurements.intersection_otherlane + measurements.player_measurements.intersection_offroad
         
-        intersection = measurements.player_measurements.intersection_offroad
+        intersection = measurements.player_measurements.intersection_offroad # e.g. (0.45)
         
         # print('speed = ' + str(speed) + 'collision = ' + str(collision) + 'intersection = ' + str(intersection))
 
+
         if reward is None:
-            reward = (15 - abs(speed - 30) / 2.0 - collision / 50 - intersection * 100) / 100.0
+            reward = (  (15 - abs(speed - 30) / 2.0) - collision / 50 - intersection * 100) / 100.0　#计算reward, speed距离30km/h的差，collision大概是在0~10000
+            # reward = ( speed - collision / 50 - intersection * 100) / 100.0　#计算reward, speed距离30km/h
 
         return reward, [speed, collision, intersection]
         
@@ -397,7 +405,7 @@ class CarlaGame(object):
             self._is_on_reverse = not self._is_on_reverse
         if keys[K_c]:
             self.manual_control = not self.manual_control
-        if keys[K_p]:
+        if keys[K_p]:　#系统自带的自动驾驶
             self._enable_autopilot = not self._enable_autopilot
         control.reverse = self._is_on_reverse
 

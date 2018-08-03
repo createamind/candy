@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from modules.c3d import C3D_Encoder
 
 from modules.policy_gradient import PG, PGLoss
@@ -204,8 +206,8 @@ class Machine(object):
 	def step(self, obs, state):
 		# mask = np.zeros(1)
 		td_map = {self.ppo.act_model.S:state}
-		td_map[self.test_raw_image] = np.array([obs[0]])
-		td_map[self.test_speed] = np.array([[obs[1]]])
+		td_map[self.test_raw_image] = np.array([obs[0]])# frame输入
+		td_map[self.test_speed] = np.array([[obs[1]]])# speed
 
 		return self.sess.run([self.ppo.act_model.a0, self.ppo.act_model.v0, self.ppo.act_model.snew, self.ppo.act_model.neglogp0, self.test_vae_loss.recon], td_map)
 

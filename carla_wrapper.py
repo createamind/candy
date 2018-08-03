@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from candy_model import Machine
 import numpy as np
 import yaml
@@ -30,7 +32,8 @@ class Carla_Wrapper(object):
 		self.state = self.machine.ppo.initial_state
 
 		self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states, self.std_actions, self.manual = [],[],[],[],[],[],[],[],[]
-
+		#obs:观察到的东西((连续的两帧包括深度的图像, speed), actions:采取的动作的code, values:PPO中critic的对当前局面的估价, neglogpacs：PPO中actor对当前动作的概率的负log, rewards：当前的奖励
+		#vaerecons:VAE的重建误差，用于difficulty的计算,进行优先采样 states：ＰＰＯ中ＬＳＴＭ的中间状态, std_actions:人给的动作的ｃｏｄｅ, manual：是否应该使用人给的动作进行模仿学习
 		self.last_frame = None
 		# self.pretrain()
 
@@ -97,6 +100,9 @@ class Carla_Wrapper(object):
 		self.advs = np.zeros_like(self.rewards)
 		# self.rewards[-1] = reward
 		# print(' '.join([('%.2f' % i)for i in self.rewards]))
+
+
+		#这一部分处理reward的累加
 		l = len(self.obs)
 		lastgaelam = 0
 		for t in reversed(range(l - cnt, l)):
@@ -140,15 +146,18 @@ class Carla_Wrapper(object):
 		measurements, sensor_data, control, reward, collision, std_control, manual = inputs
 		sensor_data = self.process_sensor_data(sensor_data)
 
-		nowframe = np.concatenate([sensor_data[0], sensor_data[1]], 2)
+		nowframe = np.concatenate([sensor_data[0], sensor_data[1]], 2)#深度和RGB图连接起来
+
 		if self.last_frame is None:
 			self.last_frame = nowframe
-		obs = np.concatenate([self.last_frame, nowframe], 2)
+
+		frame = np.concatenate([self.last_frame, nowframe], 2)#连续两帧连续起来
 		if refresh:
 			self.last_frame = nowframe
 
-		obs = (obs, measurements.player_measurements.forward_speed * 3.6 / 100)
+		obs = (frame, measurements.player_measurements.forward_speed * 3.6 / 100) #obs分为当前frame和speed
 
+		#将control从VehicleControl()变为数字
 		action = self.analyze_control(control)
 		std_action = self.analyze_control(std_control)
 		if std_action == 0:
@@ -220,7 +229,7 @@ class Carla_Wrapper(object):
 		print(difficulty[:20])
 		print("Memory Extraction Done.")
 
-		for _ in tqdm(range(TRAIN_EPOCH)):
+		for _ in range(TRAIN_EPOCH):
 			roll = np.random.choice(len(difficulty), BATCH_SIZE, p=difficulty)
 			tbatch = []
 			for i in roll:
@@ -241,6 +250,7 @@ class Carla_Wrapper(object):
 				self.obs[rem:],self.actions[rem:],self.values[rem:],self.neglogpacs[rem:],self.rewards[rem:],self.vaerecons[rem:], self.states[rem:], self.std_actions[rem:], self.manual[rem:]
 
 	def decode_control(self, cod):
+		#将数字的ｃｏｎｔｒｏｌ转换为VehicleControl()
 		control = VehicleControl()
 
 		control.steer = 0
@@ -277,6 +287,6 @@ class Carla_Wrapper(object):
 
 	def get_control(self, inputs):
 		obs, reward, action, std_action, manual = self.pre_process(inputs)
-		action, _, _, _, _ = self.machine.step(obs, self.state)
+		action, _, _, _, _ = self.machine.step(obs, self.state)#整个模型跑一步
 		control = self.decode_control(action)
 		return control
