@@ -31,7 +31,7 @@ Use ARROWS or WASD keys for control.
 STARTING in a moment...
 """
 
-from __future__ import print_function
+from __future__ import print_function, absolute_import, division
 
 import argparse
 import logging
@@ -323,6 +323,10 @@ class CarlaGame(object):
         print(control)
         print(model_control)
 
+        #Speed Limit
+        if measurements.player_measurements.forward_speed * 3.6 > 30:
+            model_control.throttle = 0
+
         if self.manual_control:
             self.client.send_control(control)
         else:
@@ -360,7 +364,7 @@ class CarlaGame(object):
         # print('speed = ' + str(speed) + 'collision = ' + str(collision) + 'intersection = ' + str(intersection))
 
         if reward is None:
-            reward = (15 - abs(speed - 30) / 2.0 - collision / 50 - intersection * 100) / 100.0
+            reward = (60 - abs(speed - 30) * 2.0 - collision / 50 - intersection * 100) / 100.0
 
         return reward, [speed, collision, intersection]
         
@@ -469,6 +473,7 @@ class CarlaGame(object):
 
         if self._main_image is not None:
             array = image_converter.to_rgb_array(self._main_image)
+            # print(array.shape)
             surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
             self._display.blit(surface, (0, 0))
 
