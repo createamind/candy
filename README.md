@@ -77,6 +77,7 @@ Reconstructed: (With hidden state of size 50, running for 1 hour on a single GTX
 - [x] Stop when collide.
 - [x] Visualize parameter transition.
 - [ ] Better VAE.
+- [ ] Less summary.
 - [ ] What & Where correspondence. Map data as auxilary task, using part of the hidden state.
 - [ ] Distributed data collection.
 - [ ] Lidar!
