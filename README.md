@@ -100,10 +100,10 @@ Reconstructed: (With hidden state of size 50, running for 1 hour on a single GTX
 
 ## Ideal Features
 
-* Curiosity-based Attention, Supervised Attention, loop-control-Attention，Interpretable Attention.
+* Curiosity-based Attention, Supervised Attention, loop-control-Attention, Interpretable Attention.
 * VAE + modelbased planning + video prediction + MCTS.
-* GQN，what-where in any place (Better generalization).
-* guiding commands following (HRL，Multi-tasking).
+* GQN, what-where in any place (Better generalization).
+* guiding commands following (HRL, Multi-tasking).
 * From implicit to explicit: Meta-learning, Rule Learning (Experiments from imaginary room).
 * Stronger world model with enhanced VAE(maybe with attention).
 
