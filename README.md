@@ -47,7 +47,7 @@ Reconstructed: (With hidden state of size 50, running for 1 hour on a single GTX
 * Install Openai baselines under instructions [here][baseline].
 * Install required packages:
 
-        pip install numpy tensorflow-gpu msgpack msgpack-numpy pyyaml tqdm gym opencv-python scipy
+        pip install numpy tensorflow-gpu msgpack msgpack-numpy pyyaml tqdm gym opencv-python scipy pygame pillow
     
 * Start the program by running:
 
@@ -78,6 +78,8 @@ Reconstructed: (With hidden state of size 50, running for 1 hour on a single GTX
 - [x] Visualize parameter transition.
 - [ ] Better VAE.
 - [ ] Less summary.
+- [ ] Solve catastrophic forgetting problem.
+- [ ] Better RL.
 - [ ] What & Where correspondence. Map data as auxilary task, using part of the hidden state.
 - [ ] Distributed data collection.
 - [ ] Lidar!

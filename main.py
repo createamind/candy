@@ -32,7 +32,7 @@ Use ARROWS or WASD keys for control.
 STARTING in a moment...
 """
 
-from __future__ import print_function
+from __future__ import print_function, absolute_import, division
 
 import argparse
 import logging
@@ -189,7 +189,7 @@ class CarlaGame(object):
         self.history_collision = 0
         self.ucnt = 0
         self.prev_control = None
-        self.endnow = False　#按下v会置为True，立刻进行ｔｒａｉｎｉｎｇ
+        self.endnow = False#按下v会置为True，立刻进行ｔｒａｉｎｉｎｇ
 
 
         self.carla_wrapper = wrapper
@@ -324,7 +324,11 @@ class CarlaGame(object):
         print(control)
         print(model_control)
 
-        if self.manual_control:#用ｃ切换的
+        #Speed Limit
+        if measurements.player_measurements.forward_speed * 3.6 > 30:
+            model_control.throttle = 0
+
+        if self.manual_control:
             self.client.send_control(control)
         else:
             self.client.send_control(model_control)
@@ -334,7 +338,8 @@ class CarlaGame(object):
          or measurements.player_measurements.intersection_otherlane > 0.95)):
         # if self.endnow or (self.cnt > 10 and (self.cnt > BUFFER_LIMIT or collision > 0)):
             #总结这段时间的情况，调用training
-            self.carla_wrapper.post_process([measurements, sensor_data, model_control, -1, collision, control, self.manual], self.cnt)
+            rewardlala = -1 if (collision > 0 or measurements.player_measurements.intersection_offroad > 0.95 or measurements.player_measurements.intersection_otherlane > 0.95) else None
+            self.carla_wrapper.post_process([measurements, sensor_data, model_control, rewardlala, collision, control, self.manual], self.cnt)
             self.cnt = 0
             self.endnow = False
         else:
@@ -347,7 +352,7 @@ class CarlaGame(object):
 
     def get_collision(self, measurements):
         new_collision = measurements.player_measurements.collision_vehicles + measurements.player_measurements.collision_pedestrians + measurements.player_measurements.collision_other
-        ans = new_collision - self.history_collision #得到瞬时值　累加值的差
+        ans = new_collision - self.history_collision #得到瞬时值 累加值的差
         self.history_collision = new_collision
         return ans
 
@@ -360,15 +365,14 @@ class CarlaGame(object):
 
         # intersection = measurements.player_measurements.intersection_otherlane + measurements.player_measurements.intersection_offroad
         
-        intersection = measurements.player_measurements.intersection_offroad # e.g. (0.45)
+        intersection = measurements.player_measurements.intersection_offroad + measurements.player_measurements.intersection_otherlane
         
         # print('speed = ' + str(speed) + 'collision = ' + str(collision) + 'intersection = ' + str(intersection))
 
 
         if reward is None:
-            reward = (  (15 - abs(speed - 30) / 2.0) - collision / 50 - intersection * 100) / 100.0　#计算reward, speed距离30km/h的差，collision大概是在0~10000
-            # reward = ( speed - collision / 50 - intersection * 100) / 100.0　#计算reward, speed距离30km/h
-
+            reward = (60 - abs(speed - 30) * 2.0 - collision / 50 - intersection * 100) / 100.0 #计算reward, speed距离30km/h的差，collision大概是在0~10000
+            # reward = ( speed - collision / 50 - intersection * 100) / 100.0 #计算reward, speed距离30km/h
         return reward, [speed, collision, intersection]
         
     def _get_keyboard_control(self, keys):
@@ -405,7 +409,7 @@ class CarlaGame(object):
             self._is_on_reverse = not self._is_on_reverse
         if keys[K_c]:
             self.manual_control = not self.manual_control
-        if keys[K_p]:　#系统自带的自动驾驶
+        if keys[K_p]:#系统自带的自动驾驶
             self._enable_autopilot = not self._enable_autopilot
         control.reverse = self._is_on_reverse
 
@@ -476,6 +480,7 @@ class CarlaGame(object):
 
         if self._main_image is not None:
             array = image_converter.to_rgb_array(self._main_image)
+            # print(array.shape)
             surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
             self._display.blit(surface, (0, 0))
 
@@ -537,8 +542,8 @@ class CarlaGame(object):
             array = self._map_view
             array = array[:, :, :3]
 
-            print(np.array(array).shape)
-            print(self._map_shape)
+            # print(np.array(array).shape)
+            # print(self._map_shape)
 
             new_window_width = \
                 (float(WINDOW_HEIGHT) / float(self._map_shape[0])) * \
