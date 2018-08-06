@@ -189,8 +189,9 @@ class CarlaGame(object):
         self.history_collision = 0
         self.ucnt = 0
         self.prev_control = None
+        self.history_steer = 0
         self.endnow = False#按下v会置为True，立刻进行ｔｒａｉｎｉｎｇ
-
+    
 
         self.carla_wrapper = wrapper
 
@@ -249,7 +250,6 @@ class CarlaGame(object):
 
 
         collision = self.get_collision(measurements) #得到瞬时的碰撞
-
         control, manual_reward = self._get_keyboard_control(pygame.key.get_pressed()) #得到键盘的输入，以及键盘输入的reward
         reward, _ = self.calculate_reward(measurements, manual_reward, collision) #计算reward，如果键盘没有reward
 
@@ -291,6 +291,7 @@ class CarlaGame(object):
 
         if control == "done":
             control = measurements.player_measurements.autopilot_control
+            self.history_steer = control.steer
             self.client.send_control(control)
             return
         elif control is None:
@@ -303,7 +304,7 @@ class CarlaGame(object):
             control = measurements.player_measurements.autopilot_control
 
 
-        model_control = self.carla_wrapper.get_control([measurements, sensor_data, control, reward, collision, control, self.manual])
+        model_control = self.carla_wrapper.get_control([measurements, sensor_data, control, reward, self.history_steer, control, self.manual])
 
 
         # else:
@@ -329,17 +330,19 @@ class CarlaGame(object):
             model_control.throttle = 0
 
         if self.manual_control:
+            self.history_steer = control.steer
             self.client.send_control(control)
         else:
+            self.history_steer = model_control.steer
             self.client.send_control(model_control)
 
         #控制什么时候进行ｔｒａｉｎｉｎｇ
-        if self.endnow or (self.cnt > 10 and (self.cnt > BUFFER_LIMIT or collision > 0 or measurements.player_measurements.intersection_offroad > 0.95\
-         or measurements.player_measurements.intersection_otherlane > 0.95)):
+        if self.endnow or (self.cnt > 5 and (self.cnt > BUFFER_LIMIT or collision > 0 or measurements.player_measurements.intersection_offroad > 0.5\
+         or measurements.player_measurements.intersection_otherlane > 0.5)):
         # if self.endnow or (self.cnt > 10 and (self.cnt > BUFFER_LIMIT or collision > 0)):
             #总结这段时间的情况，调用training
-            rewardlala = -1 if (collision > 0 or measurements.player_measurements.intersection_offroad > 0.95 or measurements.player_measurements.intersection_otherlane > 0.95) else None
-            self.carla_wrapper.post_process([measurements, sensor_data, model_control, rewardlala, collision, control, self.manual], self.cnt)
+            rewardlala = -1 if (collision > 0 or measurements.player_measurements.intersection_offroad > 0.5 or measurements.player_measurements.intersection_otherlane > 0.5) else None
+            self.carla_wrapper.post_process([measurements, sensor_data, model_control, rewardlala, self.history_steer, control, self.manual], self.cnt)
             self.cnt = 0
             self.endnow = False
         else:
@@ -347,7 +350,7 @@ class CarlaGame(object):
             self.cnt += 1
             self.endnow = False
             #记录当前步的状况
-            self.carla_wrapper.update([measurements, sensor_data, model_control, reward, collision, control, self.manual])
+            self.carla_wrapper.update([measurements, sensor_data, model_control, reward, self.history_steer, control, self.manual])
 
 
     def get_collision(self, measurements):

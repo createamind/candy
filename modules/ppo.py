@@ -21,7 +21,9 @@ class LstmPolicy(object):
 		nenv = nbatch // nsteps
 		self.args = args
 		self.name = name
-		self.pdtype = make_pdtype(Discrete(13))
+		# self.pdtype = make_pdtype(Discrete(13))
+
+		self.pdtype = make_pdtype(Box(low=np.array([-1.0,-1.0], dtype=np.float32), high=np.array([1.0,1.0],dtype=np.float32)))
 		# X, processed_x = observation_input(ob_space, nbatch)
 
 		# X = tf.placeholder(tf.float32, [nbatch, HIDDEN])
@@ -35,7 +37,7 @@ class LstmPolicy(object):
 
 			o, snew = cell(h, S)
 
-			h5 = tf.layers.dense(o, 13, kernel_regularizer=tf.contrib.layers.l2_regularizer(self.args[self.name]['weight_decay']))
+			h5 = tf.layers.dense(o, 4, kernel_regularizer=tf.contrib.layers.l2_regularizer(self.args[self.name]['weight_decay']))
 			vf = tf.layers.dense(o, 1, kernel_regularizer=tf.contrib.layers.l2_regularizer(self.args[self.name]['weight_decay']))
 			
 			# h5 = tf.Print(h5, [h5], summarize=15)
@@ -43,10 +45,9 @@ class LstmPolicy(object):
 
 			self.pd, self.pi = self.pdtype.pdfromlatent(h5)
 
-
 		v0 = vf[:, 0]
 		a0 = self.pd.sample()
-		a_z = tf.placeholder(tf.int32, [nbatch])
+		a_z = tf.placeholder(tf.float32, [nbatch, 2])
 
 		neglogp0 = self.pd.neglogp(a0)
 		neglogpz = self.pd.neglogp(a_z)
@@ -76,7 +77,7 @@ class PPO(object):
 		act_model = LstmPolicy(args, 'ppo', test_z, 1, 1, reuse=False)
 		train_model = LstmPolicy(args, 'ppo', z, args['batch_size'], args['batch_size'], reuse=True)
 
-		A = train_model.pdtype.sample_placeholder([None])
+		A = tf.placeholder(tf.float32, [None, 2])
 		ADV = tf.placeholder(tf.float32, [None])
 		R = tf.placeholder(tf.float32, [None])
 		OLDNEGLOGPAC = tf.placeholder(tf.float32, [None])
@@ -84,7 +85,7 @@ class PPO(object):
 		CLIPRANGE = 0.2
 
 
-		self.std_action = tf.placeholder(tf.int32, [None])
+		self.std_action = tf.placeholder(tf.float32, [None, 2])
 		self.std_mask = tf.placeholder(tf.bool, [None])
 
 		self.A = A
@@ -135,7 +136,10 @@ class PPO(object):
 		# clipfrac = tf.reduce_mean(tf.to_float(tf.greater(tf.abs(ratio - 1.0), CLIPRANGE)))
 		# loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef
 
-		imitation_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.pi, labels=self.std_action)
+
+
+		# imitation_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.pi, labels=self.std_action)
+		imitation_loss = tf.square(train_model.pi - self.std_action)
 		imitation_loss = tf.reduce_mean(tf.boolean_mask(imitation_loss, self.std_mask))
 		imitation_loss = tf.where(tf.is_nan(imitation_loss), tf.zeros_like(imitation_loss), imitation_loss)
 		loss = loss + self.args['imitation_coefficient'] * imitation_loss

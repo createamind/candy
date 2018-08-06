@@ -34,9 +34,11 @@ class Machine(object):
 		#Building Graph
 		self.raw_image = tf.placeholder(tf.float32, shape=(args['batch_size'], 320, 320, 8))
 		self.speed = tf.placeholder(tf.float32, shape=(args['batch_size'], 1))
+		self.steer = tf.placeholder(tf.float32, shape=(args['batch_size'], 1))
 
 		self.test_raw_image = tf.placeholder(tf.float32, shape=(1, 320, 320, 8))
 		self.test_speed = tf.placeholder(tf.float32, shape=(1, 1))
+		self.test_steer = tf.placeholder(tf.float32, shape=(1, 1))
 
 		#[self.image_sequence, self.raw_image, self.depth_image, self.seg_image, self.speed, self.collision, self.intersection, self.control, self.reward, self.transition]
 
@@ -54,8 +56,8 @@ class Machine(object):
 		test_recon_x, test_z, test_logsigma = self.test_vae.inference()
 		self.test_vae_loss = VAELoss(args, 'vae', test_recon_x, self.test_raw_image, test_z, test_logsigma)
 
-		# z = tf.concat([z, self.speed], 1)
-		# test_z = tf.concat([test_z, self.test_speed], 1)
+		z = tf.concat([z, self.speed, self.steer], 1)
+		test_z = tf.concat([test_z, self.test_speed, self.test_steer], 1)
 
 		z = tf.clip_by_value(z, -5, 5)
 		test_z = tf.clip_by_value(test_z, -5, 5)
@@ -208,15 +210,20 @@ class Machine(object):
 		td_map = {self.ppo.act_model.S:state}
 		td_map[self.test_raw_image] = np.array([obs[0]])# frame输入
 		td_map[self.test_speed] = np.array([[obs[1]]])# speed
+		td_map[self.test_steer] = np.array([[obs[2]]])
 
 		return self.sess.run([self.ppo.act_model.a0, self.ppo.act_model.v0, self.ppo.act_model.snew, self.ppo.act_model.neglogp0, self.test_vae_loss.recon], td_map)
 
 
 	def value(self, obs, state, action):
 		# mask = np.zeros(1)
-		td_map = {self.ppo.act_model.S:state, self.ppo.act_model.a_z: [action]}
+		if len(np.array(action).shape) == 1:
+			action = [action]
+		td_map = {self.ppo.act_model.S:state, self.ppo.act_model.a_z: action}
 		td_map[self.test_raw_image] = np.array([obs[0]])
 		td_map[self.test_speed] = np.array([[obs[1]]])
+		td_map[self.test_steer] = np.array([[obs[2]]])
+
 		return self.sess.run([self.ppo.act_model.a_z, self.ppo.act_model.v0, self.ppo.act_model.snew, self.ppo.act_model.neglogpz, self.test_vae_loss.recon], td_map)
 
 	def train(self, inputs, global_step):
@@ -236,6 +243,7 @@ class Machine(object):
 
 		raw_image = np.array([ob[0] for ob in obs])
 		speed = np.array([[ob[1]] for ob in obs])
+		steer = np.array([[ob[2]] for ob in obs])
 
 		# print(raw_image.shape)
 		# print(speed.shape)
@@ -254,8 +262,10 @@ class Machine(object):
 
 		td_map[self.raw_image] = raw_image
 		td_map[self.speed] = speed
+		td_map[self.steer] = steer
 		td_map[self.test_raw_image] = [raw_image[0]]
 		td_map[self.test_speed] = [speed[0]]
+		td_map[self.test_steer] = [steer[0]]
 
 		summary, _ = self.sess.run([self.merged, self.final_ops], feed_dict=td_map)
 		if global_step % 100 == 0:

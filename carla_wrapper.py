@@ -45,30 +45,37 @@ class Carla_Wrapper(object):
 		hand_brake = control.hand_brake
 		reverse = control.reverse
 
-		b = 0
-		if steer < -0.2:
-			b += 2
-		elif steer > 0.2:
-			b += 1
-		b *= 3
+		# b = 0
+		# if steer < -0.2:
+		# 	b += 2
+		# elif steer > 0.2:
+		# 	b += 1
+		# b *= 3
 
-		if throttle > 0.4:
-			b += 2
-		if brake > 0.4:
-			b += 1
+		# if throttle > 0.4:
+		# 	b += 2
+		# if brake > 0.4:
+		# 	b += 1
 
-		if reverse:
-			b = 9
+		# if reverse:
+		# 	b = 9
 		
-		if hand_brake:
-			if steer < -0.4:
-				b = 10
-			elif steer > 0.4:
-				b = 11
-			else:
-				b = 12
-		
-		return b
+		# if hand_brake:
+		# 	if steer < -0.4:
+		# 		b = 10
+		# 	elif steer > 0.4:
+		# 		b = 11
+		# 	else:
+		# 		b = 12
+
+
+		th = 0
+		if brake > 0:
+			th = -brake
+		if throttle > 0:
+			th = -throttle
+
+		return [th, steer]
 
 	def process_sensor_data(self, sensor_data):
 		_main_image = sensor_data.get('CameraRGB', None)
@@ -171,7 +178,7 @@ class Carla_Wrapper(object):
 
 
 	def pre_process(self, inputs, refresh=False):
-		measurements, sensor_data, control, reward, collision, std_control, manual = inputs
+		measurements, sensor_data, control, reward, steer, std_control, manual = inputs
 		sensor_data = self.process_sensor_data(sensor_data)
 
 		nowframe = np.concatenate([sensor_data[0], sensor_data[1]], 2)#深度和RGB图连接起来
@@ -183,7 +190,7 @@ class Carla_Wrapper(object):
 		if refresh:
 			self.last_frame = nowframe
 
-		obs = (frame, measurements.player_measurements.forward_speed * 3.6 / 100) #obs分为当前frame和speed
+		obs = (frame, measurements.player_measurements.forward_speed * 3.6 / 15.0 - 1, steer) #obs分为当前frame和speed
 
 		#将control从VehicleControl()变为数字
 		action = self.analyze_control(control)
@@ -288,34 +295,41 @@ class Carla_Wrapper(object):
 		control.hand_brake = False
 		control.reverse = False
 
+		th, steer = cod
+		if th > 0:
+			control.throttle = min(th, 1.0)
+		if th < 0:
+			control.brake = min(-th, 1.0)
 
-		if cod > 9:
-			control.hand_brake = True
-			if cod == 10:
-				control.steer = -1
-			elif cod == 11:
-				control.steer = 1
-			return control
+		control.steer = max(min(steer, 1.0), -1.0)
 
-		if cod == 9:
-			control.reverse = True
-			control.throttle = 1
-			return control
+		# if cod > 9:
+		# 	control.hand_brake = True
+		# 	if cod == 10:
+		# 		control.steer = -1
+		# 	elif cod == 11:
+		# 		control.steer = 1
+		# 	return control
 
-		if cod % 3 == 1:
-			control.brake = 1
-		elif cod % 3 == 2:
-			control.throttle = 1
+		# if cod == 9:
+		# 	control.reverse = True
+		# 	control.throttle = 1
+		# 	return control
+
+		# if cod % 3 == 1:
+		# 	control.brake = 1
+		# elif cod % 3 == 2:
+		# 	control.throttle = 1
 		
-		if cod // 3 == 1:
-			control.steer = 1
-		elif cod // 3 == 2:
-			control.steer = -1
+		# if cod // 3 == 1:
+		# 	control.steer = 1
+		# elif cod // 3 == 2:
+		# 	control.steer = -1
 		
 		return control
 
 	def get_control(self, inputs):
 		obs, reward, action, std_action, manual = self.pre_process(inputs)
 		action, _, _, _, _ = self.machine.step(obs, self.state)#整个模型跑一步
-		control = self.decode_control(action)
+		control = self.decode_control(action[0])
 		return control
