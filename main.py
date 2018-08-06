@@ -92,7 +92,7 @@ WINDOW_WIDTH = 500
 WINDOW_HEIGHT = 500
 MINI_WINDOW_WIDTH = 200
 MINI_WINDOW_HEIGHT = 200
-BUFFER_LIMIT = 258
+BUFFER_LIMIT = 100
 
 def make_carla_settings(args):
     """Make a CarlaSettings object with the settings we need."""
@@ -171,7 +171,7 @@ class CarlaGame(object):
         self._main_image = None
         self._mini_view_image1 = None
         self._mini_view_image2 = None
-        self._enable_autopilot = False
+        self._enable_autopilot = True
         self._lidar_measurement = None
         self._map_view = None
         self._is_on_reverse = False

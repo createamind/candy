@@ -36,14 +36,14 @@ class LstmPolicy(object):
 			cell = tf.nn.rnn_cell.MultiRNNCell([lstm_cell]*1,state_is_tuple=False)
 
 			o, snew = cell(h, S)
+			o = tf.clip_by_value(o, -5, 5)
 
-			h5 = tf.layers.dense(o, 4, kernel_regularizer=tf.contrib.layers.l2_regularizer(self.args[self.name]['weight_decay']))
+			# h5 = tf.layers.dense(o, 10, kernel_regularizer=tf.contrib.layers.l2_regularizer(self.args[self.name]['weight_decay']))
 			vf = tf.layers.dense(o, 1, kernel_regularizer=tf.contrib.layers.l2_regularizer(self.args[self.name]['weight_decay']))
 			
 			# h5 = tf.Print(h5, [h5], summarize=15)
-			h5 = tf.clip_by_value(h5, -5, 5)
 
-			self.pd, self.pi = self.pdtype.pdfromlatent(h5)
+			self.pd, self.pi = self.pdtype.pdfromlatent(o)
 
 		v0 = vf[:, 0]
 		a0 = self.pd.sample()
@@ -142,6 +142,7 @@ class PPO(object):
 		imitation_loss = tf.square(train_model.pi - self.std_action)
 		imitation_loss = tf.reduce_mean(tf.boolean_mask(imitation_loss, self.std_mask))
 		imitation_loss = tf.where(tf.is_nan(imitation_loss), tf.zeros_like(imitation_loss), imitation_loss)
+		# imitation_loss = tf.Print(imitation_loss, [imitation_loss])
 		loss = loss + self.args['imitation_coefficient'] * imitation_loss
  
 		tf.summary.scalar('actionloss', action_loss)

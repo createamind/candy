@@ -73,7 +73,7 @@ class Carla_Wrapper(object):
 		if brake > 0:
 			th = -brake
 		if throttle > 0:
-			th = -throttle
+			th = throttle
 
 		return [th, steer]
 
@@ -195,8 +195,8 @@ class Carla_Wrapper(object):
 		#将control从VehicleControl()变为数字
 		action = self.analyze_control(control)
 		std_action = self.analyze_control(std_control)
-		if std_action == 0:
-			manual = False
+		# if std_action == 0:
+		# 	manual = False
 		return obs, reward, action, std_action, manual
 		
 
@@ -330,6 +330,9 @@ class Carla_Wrapper(object):
 
 	def get_control(self, inputs):
 		obs, reward, action, std_action, manual = self.pre_process(inputs)
+		print(action)
+		print(std_action)
 		action, _, _, _, _ = self.machine.step(obs, self.state)#整个模型跑一步
+		print(action)
 		control = self.decode_control(action[0])
 		return control

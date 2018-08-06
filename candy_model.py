@@ -56,8 +56,8 @@ class Machine(object):
 		test_recon_x, test_z, test_logsigma = self.test_vae.inference()
 		self.test_vae_loss = VAELoss(args, 'vae', test_recon_x, self.test_raw_image, test_z, test_logsigma)
 
-		z = tf.concat([z, self.speed, self.steer], 1)
-		test_z = tf.concat([test_z, self.test_speed, self.test_steer], 1)
+		z = tf.concat([z, self.speed], 1)
+		test_z = tf.concat([test_z, self.test_speed], 1)
 
 		z = tf.clip_by_value(z, -5, 5)
 		test_z = tf.clip_by_value(test_z, -5, 5)
@@ -268,7 +268,7 @@ class Machine(object):
 		td_map[self.test_steer] = [steer[0]]
 
 		summary, _ = self.sess.run([self.merged, self.final_ops], feed_dict=td_map)
-		if global_step % 100 == 0:
+		if global_step % 1 == 0:
 			self.writer.add_summary(summary, global_step)
 
 
