@@ -19,7 +19,7 @@ import os
 BATCH_SIZE = 128
 KEEP_CNT = 1500
 MAX_SAVE = 0
-TRAIN_EPOCH = 15
+TRAIN_EPOCH = 30
 
 class Carla_Wrapper(object):
 

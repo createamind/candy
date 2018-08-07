@@ -337,11 +337,11 @@ class CarlaGame(object):
             self.client.send_control(model_control)
 
         #控制什么时候进行ｔｒａｉｎｉｎｇ
-        if self.endnow or (self.cnt > 5 and (self.cnt > BUFFER_LIMIT or collision > 0 or measurements.player_measurements.intersection_offroad > 0.5\
-         or measurements.player_measurements.intersection_otherlane > 0.5)):
+        if self.endnow or (self.cnt > 5 and (self.cnt > BUFFER_LIMIT or collision > 0 or measurements.player_measurements.intersection_offroad > 0.05\
+         or measurements.player_measurements.intersection_otherlane > 0.05)):
         # if self.endnow or (self.cnt > 10 and (self.cnt > BUFFER_LIMIT or collision > 0)):
             #总结这段时间的情况，调用training
-            rewardlala = -1 if (collision > 0 or measurements.player_measurements.intersection_offroad > 0.5 or measurements.player_measurements.intersection_otherlane > 0.5) else None
+            rewardlala = -1 if (collision > 0 or measurements.player_measurements.intersection_offroad > 0.05 or measurements.player_measurements.intersection_otherlane > 0.05) else None
             self.carla_wrapper.post_process([measurements, sensor_data, model_control, rewardlala, self.history_steer, control, self.manual], self.cnt)
             self.cnt = 0
             self.endnow = False
