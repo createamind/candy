@@ -16,6 +16,10 @@ Car drifting (more to be uploaded):
 
 <img src="https://github.com/createamind/candy/blob/master/screenshots/drift.gif" width="300" style="display:inline"/>
 
+City navigation:
+
+<img src="https://github.com/createamind/candy/blob/master/screenshots/carla_long.gif" width="300" style="display:inline"/>
+
 ### VAE
 
 Real:

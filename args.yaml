@@ -3,10 +3,10 @@ c3d_encoder:
     learning_rate: 0.00000000000001
     weight_decay: 0.00000000000001
 vae:
-    learning_rate: 0.002
+    learning_rate: 0.0003
     weight_decay: 0.001
 ppo:
-    learning_rate: 0.005
+    learning_rate: 0.0003
     weight_decay: 0.001
 raw_image:
     learning_rate: 0.00000000000001
