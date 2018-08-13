@@ -32,7 +32,15 @@ Use ARROWS or WASD keys for control.
 STARTING in a moment...
 """
 
+
 from __future__ import print_function, absolute_import, division
+
+#import sys
+#sys.path = [sys.path[0]] + sys.path[:0:-1]
+
+#import os
+#for _ in os.environ:
+#    print(_)
 
 import argparse
 import logging
@@ -43,7 +51,7 @@ try:
     import pygame
     from pygame.locals import K_DOWN
     from pygame.locals import K_LEFT
-    from pygame.locals import K_RIGHT
+    from pygame.locals import K_RIGHT  # K_RIGHT = {int} 275
     from pygame.locals import K_SPACE
     from pygame.locals import K_UP
     from pygame.locals import K_a
@@ -484,59 +492,7 @@ class CarlaGame(object):
             surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
             self._display.blit(surface, (0, 0))
 
-        # if self._mini_view_image1 is not None:
-        #     array = image_converter.depth_to_logarithmic_grayscale(self._mini_view_image1)
-        #     surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
-        #     self._display.blit(surface, (gap_x, mini_image_y))
 
-        # if self._mini_view_image2 is not None:
-        #     array = image_converter.labels_to_cityscapes_palette(
-        #         self._mini_view_image2)
-        #     surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
-
-        #     self._display.blit(
-        #         surface, (2 * gap_x + MINI_WINDOW_WIDTH, mini_image_y))
-
-        # if self._lidar_measurement is not None:
-        #     lidar_data = np.array(self._lidar_measurement.data[:, :2])
-        #     lidar_data *= 2.0
-        #     lidar_data += 100.0
-        #     lidar_data = np.fabs(lidar_data)
-        #     lidar_data = lidar_data.astype(np.int32)
-        #     lidar_data = np.reshape(lidar_data, (-1, 2))
-        #     #draw lidar
-        #     lidar_img_size = (200, 200, 3)
-        #     lidar_img = np.zeros(lidar_img_size)
-        #     lidar_img[tuple(lidar_data.T)] = (255, 255, 255)
-        #     surface = pygame.surfarray.make_surface(lidar_img)
-        #     self._display.blit(surface, (10, 10))
-
-        # if self._map_view is not None:
-        #     array = self._map_view
-        #     array = array[:, :, :3]
-
-        #     new_window_width = \
-        #         (float(WINDOW_HEIGHT) / float(self._map_shape[0])) * \
-        #         float(self._map_shape[1])
-        #     surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
-
-        #     w_pos = int(self._position[0]*(float(WINDOW_HEIGHT)/float(self._map_shape[0])))
-        #     h_pos = int(self._position[1] *(new_window_width/float(self._map_shape[1])))
-
-        #     pygame.draw.circle(surface, [255, 0, 0, 255], (w_pos, h_pos), 6, 0)
-        #     for agent in self._agent_positions:
-        #         if agent.HasField('vehicle'):
-        #             agent_position = self._map.convert_to_pixel([
-        #                 agent.vehicle.transform.location.x,
-        #                 agent.vehicle.transform.location.y,
-        #                 agent.vehicle.transform.location.z])
-
-        #             w_pos = int(agent_position[0]*(float(WINDOW_HEIGHT)/float(self._map_shape[0])))
-        #             h_pos = int(agent_position[1] *(new_window_width/float(self._map_shape[1])))
-
-        #             pygame.draw.circle(surface, [255, 0, 255, 255], (w_pos, h_pos), 4, 0)
-
-        #     self._display.blit(surface, (WINDOW_WIDTH, 0))
 
         if self._map_view is not None:
             array = self._map_view

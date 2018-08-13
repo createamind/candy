@@ -81,39 +81,11 @@ class Carla_Wrapper(object):
 		return [t1, t2, t3]
 
 
-	# def update_reward(self, cnt, obs, action):
-	# 	_, last_values, _, _, _ = self.machine.value(obs, self.state, action)
 
-	# 	#discount/bootstrap off value fn
-	# 	self.advs = np.zeros_like(self.rewards)
-	# 	# self.rewards[-1] = reward
-	# 	# print(' '.join([('%.2f' % i)for i in self.rewards]))
-	# 	l = len(self.obs)
-	# 	lastgaelam = 0
-	# 	for t in reversed(range(l - cnt, l)):
-	# 		if t == l - 1:
-	# 			nextvalues = last_values
-	# 		else:
-	# 			nextvalues = self.values[t+1]
-	# 		delta = self.rewards[t] + self.gamma * nextvalues - self.values[t]
-	# 		self.advs[t] = lastgaelam = delta + self.gamma * self.lam * lastgaelam
-	# 	for t in range(l - cnt, l):
-	# 		self.rewards[t] = float(self.advs[t] + self.values[t])
 
 	def update_reward(self, cnt, obs, action, reward):
 
-		# #discount/bootstrap off value fn
-		# self.advs = np.zeros_like(self.rewards)
-		# # self.rewards[-1] = reward
-		# # print(' '.join([('%.2f' % i)for i in self.rewards]))
-		# lastgaelam = 0
-		# for t in reversed(range(l - cnt, l)):
-		# 	if t == l - 1:
-		# 		nextvalues = last_values
-		# 	else:
-		# 		nextvalues = self.values[t+1]
-		# 	delta = self.rewards[t] + self.gamma * nextvalues - self.values[t]
-		# 	self.advs[t] = lastgaelam = delta + self.gamma * self.lam * lastgaelam
+
 		l = len(self.obs)
 		for t in range(l - cnt, l - 2):
 			self.rewards[t] = self.rewards[t+1]
@@ -132,37 +104,10 @@ class Carla_Wrapper(object):
 
 		obs, reward, action, std_action, manual = self.pre_process(inputs)
 
-		#batch of steps to batch of rollouts
-		# self.obs = np.asarray(self.obs, dtype=np.float32)
-		# self.actions = np.asarray(self.actions, dtype=np.int32)
-		# self.values = np.asarray(self.values, dtype=np.float32)
-		# self.neglogpacs = np.asarray(self.neglogpacs, dtype=np.float32)
-		# self.rewards = np.asarray(self.rewards, dtype=np.float32)
-		# self.vaerecons = np.asarray(self.vaerecons, dtype=np.float32)
-		# self.states = np.asarray(self.states, dtype=np.float32)
 
 		self.update_reward(cnt, obs, action, reward)
 
-		# print(' '.join([('%.2f' % i)for i in self.rewards]))
 
-		# self.rewards = np.array(self.rewards)
-		# if os.path.exists('obs/data'):
-		# 	with open('obs/data', 'rb') as fp:
-		# 		obs, actions, values, neglogpacs, rewards, vaerecons, states = msgpack.load(fp, encoding='utf-8', raw=False)
-		# else:
-		# 	obs, actions, values, neglogpacs, rewards, vaerecons, states = [], [], [], [], [], [], []
-		
-		# if len(obs) < MAX_SAVE:
-		# 	with open('obs/data', 'wb') as fp:
-		# 		msgpack.dump([obs + self.obs[l - BUFFER_LIMIT:l],\
-		# 		 actions + self.actions[l - BUFFER_LIMIT:l],\
-		# 		 values + self.values[l - BUFFER_LIMIT:l],\
-		# 		 neglogpacs + self.neglogpacs[l - BUFFER_LIMIT:l],\
-		# 		 rewards + self.rewards[l - BUFFER_LIMIT:l],\
-		# 		 vaerecons + self.vaerecons[l - BUFFER_LIMIT:l],\
-		# 		 states + self.states[l - BUFFER_LIMIT:l]],\
-		# 		 fp, use_bin_type=True)
-			
 
 		print(self.rewards[-20:])
 		print('Start Memory Replay')
@@ -197,18 +142,8 @@ class Carla_Wrapper(object):
 
 		obs, reward, action, std_action, manual = self.pre_process(inputs, refresh=True)
 
-		# sensor_data = self.process_sensor_data(sensor_data)
-		# obs = [sensor_data[0]]
-		# auxs = [sensor_data[1], sensor_data[2],\
-		#     abs(measurements.player_measurements.forward_speed) * 3.6 / 100, \
-		#     collision / 20000,\
-		#     measurements.player_measurements.intersection_offroad]
 
-		# control = self.analyze_control(control)
-		# reward = [reward]
-		
-		# assert len(self.obs_buffer) == len(self.auxs_buffer) and len(self.auxs_buffer) == len(self.control_buffer)\
-		#      and len(self.control_buffer) == len(self.reward_buffer)
+
 
 		self.states.append(self.state)
 
