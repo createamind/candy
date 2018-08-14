@@ -6,6 +6,9 @@ import numpy as np
 import math
 import os
 
+import matplotlib.pyplot as plt # 用于显示图片
+import matplotlib.image as mpimg # 用于读取图片
+
 class VAE():
 	def __init__(self, args, name, x, reuse=False):
 		self.args = args
@@ -54,7 +57,7 @@ class VAE():
 
 	def inference(self):
 
-		timage = tf.cast((self.x + 1) * 127, tf.uint8)
+		timage = tf.cast((self.x + 1) * 127, tf.uint8)            # （-1,1）变成（0,255）
 		tf.summary.image("raw_image_real", timage[:,:,:,:3])
 		# tf.summary.image("raw_image_real", timage[:,:,:,4:])
 
@@ -65,10 +68,15 @@ class VAE():
 		tf.summary.image("raw_image_recon", timage[:,:,:,:3])
 		# tf.summary.image("raw_image_recon", timage[:,:,:,4:])
 
+		# plt.figure(num=1, figsize=(8, 8), )
+		# plt.imshow(recon_x)  # 显示图片
+		# plt.show()
 		
 		self.saver = tf.train.Saver(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.name))
 
 		return recon_x, mean, logsigma
+
+
 
 	def optimize(self, loss):
 		self.opt = tf.train.AdamOptimizer(learning_rate=self.args[self.name]['learning_rate'])
@@ -83,7 +91,7 @@ class VAE():
 
 	def variable_restore(self, sess):
 
-		model_filename = os.path.join("save", self.name)
+		model_filename = os.path.join("save_bestimit", self.name)
 
 		# if os.path.isfile(model_filename + '.meta'):
 		# 	self.saver = tf.train.import_meta_graph(model_filename + '.meta')

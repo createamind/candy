@@ -35,8 +35,8 @@ STARTING in a moment...
 
 from __future__ import print_function, absolute_import, division
 
-#import sys
-#sys.path = [sys.path[0]] + sys.path[:0:-1]
+import sys
+sys.path = [sys.path[0]] + sys.path[:0:-1]
 
 #import os
 #for _ in os.environ:
