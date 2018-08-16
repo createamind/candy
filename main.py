@@ -536,6 +536,12 @@ def main():
         dest='debug',
         help='print debug information')
     argparser.add_argument(
+        '--ppo',
+        help='ppo ckpt file')
+    argparser.add_argument(
+        '--vae',
+        help='vae ckpt file')
+    argparser.add_argument(
         '--host',
         metavar='H',
         default='localhost',
