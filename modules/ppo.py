@@ -49,7 +49,7 @@ class LstmPolicy(object):
 		v0 = vf[:, 0]
 		a0 = self.pd.sample()
 		a0 = tf.Print(a0, [a0, self.pi], summarize=10)
-		a0 = self.pi 
+		# a0 = self.pi 
 		a_z = tf.placeholder(tf.float32, [nbatch, 2])
 
 		neglogp0 = self.pd.neglogp(a0)
@@ -140,11 +140,11 @@ class PPO(object):
 		# loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef
 
 		# imitation_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.pi, labels=self.std_action)
-		imitation_loss = tf.square(train_model.pi - self.std_action)
+		imitation_loss = tf.reduce_mean(tf.square(train_model.pi - self.std_action), 1)
 		imitation_loss = tf.reduce_mean(tf.boolean_mask(imitation_loss, self.std_mask))
 		imitation_loss = tf.where(tf.is_nan(imitation_loss), tf.zeros_like(imitation_loss), imitation_loss)
 		# imitation_loss = tf.Print(imitation_loss, [imitation_loss])
-		loss = 0 * loss + self.args['imitation_coefficient'] * imitation_loss
+		loss = loss + 0 * self.args['imitation_coefficient'] * imitation_loss
  
 		tf.summary.scalar('actionloss', action_loss)
 		tf.summary.scalar('valueloss', value_loss)

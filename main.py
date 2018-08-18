@@ -92,7 +92,7 @@ WINDOW_WIDTH = 500
 WINDOW_HEIGHT = 500
 MINI_WINDOW_WIDTH = 200
 MINI_WINDOW_HEIGHT = 200
-BUFFER_LIMIT = 1501
+BUFFER_LIMIT = 501
 
 def make_carla_settings(args):
     """Make a CarlaSettings object with the settings we need."""
@@ -223,15 +223,17 @@ class CarlaGame(object):
         self._on_new_episode()
 
     def _on_new_episode(self):
-        # self._carla_settings.set(SeedVehicles=4)
-        # self._carla_settings.set(SeedPedestrians=4)
+        if random.randint(1,3) == 1:
+            self._carla_settings.set(SeedVehicles=4)
+            self._carla_settings.set(SeedPedestrians=4)
         self._carla_settings.set(WeatherId=0)
 
         # self._carla_settings.randomize_weather()
         scene = self.client.load_settings(self._carla_settings)
         number_of_player_starts = len(scene.player_start_spots)
         player_start = np.random.randint(number_of_player_starts)
-        # player_start = 76
+        if random.randint(1,3) == 1:
+            player_start = 76
         print('Starting new episode...')
         self.client.start_episode(player_start)
         self._timer = Timer()
