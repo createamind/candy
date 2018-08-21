@@ -27,7 +27,7 @@ EP_LEN = 200
 N_WORKER = 4  # parallel workers
 N_WORKER_READY = 0
 
-ACTION_LIMIT = 2.
+ACTION_LIMIT = 1.
 
 GAMMA = 0.9  # reward discount factor
 A_LR = 0.0001  # learning rate for actor
@@ -35,27 +35,33 @@ C_LR = 0.0002  # learning rate for critic
 MIN_BATCH_SIZE = 64  # minimum batch size for updating PPO
 UPDATE_STEP = 10  # loop update operation n-steps
 EPSILON = 0.2  # for clipping surrogate objective
+GAME = 'Pendulum-v0'
 S_DIM, A_DIM = 16, 2  # state and action dimension
+NUM_UPDATE = 0
 
 
-class PPO(object):
-    def __init__(self):
+class PPO2(object):
+    def __init__(self,restore_weight = False):
+        self.restore_weight = restore_weight
         self.sess = tf.Session()
         self.tfs = tf.placeholder(tf.float32, [None, S_DIM], 'state')
 
-        # critic
-        l1 = tf.layers.dense(self.tfs, 100, tf.nn.relu)
-        self.v = tf.layers.dense(l1, 1)  # V(s)
-        self.tfdc_r = tf.placeholder(tf.float32, [None, 1], 'discounted_r')
-        self.advantage = self.tfdc_r - self.v
-        self.c_loss = tf.reduce_mean(tf.square(self.advantage))
-        self.c_train_op = tf.train.AdamOptimizer(C_LR).minimize(self.c_loss)
+        with tf.variable_scope("PPO2", reuse=False):
+            # critic
+            l1 = tf.layers.dense(self.tfs, 100, tf.nn.relu)
+            self.v = tf.layers.dense(l1, 1)  # V(s)
+            self.tfdc_r = tf.placeholder(tf.float32, [None, 1], 'discounted_r')
+            self.advantage = self.tfdc_r - self.v
+            self.c_loss = tf.reduce_mean(tf.square(self.advantage))
+            self.c_train_op = tf.train.AdamOptimizer(C_LR).minimize(self.c_loss)
 
-        # actor
-        pi, pi_params = self._build_a_net('pi', trainable=True)   # pi is a policy with a normal distribution N(mu,sigma), pi_params are the tf.GraphKeys.GLOBAL_VARIABLES
-        oldpi, oldpi_params = self._build_a_net('oldpi', trainable=False)
-        self.sample_op = tf.squeeze(oldpi.sample(1), axis=0)  # operation of choosing action
-        self.update_oldpi_op = [oldp.assign(p) for p, oldp in zip(pi_params, oldpi_params)]
+            # actor
+            pi, pi_params = self._build_a_net('pi', trainable=True)   # pi is a policy with a normal distribution N(mu,sigma), pi_params are the tf.GraphKeys.GLOBAL_VARIABLES
+            oldpi, oldpi_params = self._build_a_net('oldpi', trainable=False)
+            self.sample_op = tf.squeeze(oldpi.sample(1), axis=0)  # operation of choosing action
+            self.update_oldpi_op = [oldp.assign(p) for p, oldp in zip(pi_params, oldpi_params)]
+
+
 
         self.tfa = tf.placeholder(tf.float32, [None, A_DIM], 'action')
         self.tfadv = tf.placeholder(tf.float32, [None, 1], 'advantage')
@@ -70,51 +76,39 @@ class PPO(object):
 
         self.a_train_op = tf.train.AdamOptimizer(A_LR).minimize(self.a_loss)
         self.sess.run(tf.global_variables_initializer())
-        self.saver = tf.train.Saver(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES))
+        self.saver = tf.train.Saver(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="PPO2"))
         #self.saver = tf.train.Saver(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES))
         #for _ in (tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)):
         #    print(_)
+        if self.restore_weight:
+            self.restore(100)
 
     def save(self,step):
-        timestamp = time.strftime('%Y-%m-%d-%H:%M:%S', time.localtime())
-        self.saver.save(self.sess, sys.path[0]+'/save/{}'.format(timestamp), global_step=step, write_meta_graph=False, write_state=False)
+        self.saver.save(self.sess, sys.path[0]+'/modules/save/ppo', global_step=step, write_meta_graph=False, write_state=False)
         print('Trainable Variables Saved.')
 
     def restore(self,step):
-        self.saver.restore(self.sess, sys.path[0]+'/save/ppo-{}'.format(step))
+        self.saver.restore(self.sess, sys.path[0]+'/modules/save/ppo-{}'.format(step))
         print("Trainable Variables Loaded.")
 
 
-    def update(self):
-        global GLOBAL_UPDATE_COUNTER, N_WORKER_READY
-        while not COORD.should_stop():
-            if GLOBAL_EP < EP_MAX:
-                #t0 = time.time()
-                UPDATE_EVENT.wait()  # wait until get batch of data
-                #t1 = time.time()
-#                print(QUEUE.qsize())
-                data = [QUEUE.get() for _ in range(QUEUE.qsize())]  # collect data from all workers
-                data = np.vstack(data)
-                s, a, r = data[:, :S_DIM], data[:, S_DIM: S_DIM + A_DIM], data[:, -1:]
-#                print("data.shape:",s.shape,a.shape,r.shape)
-                adv = self.sess.run(self.advantage, {self.tfs: s, self.tfdc_r: r})
-                # update actor and critic in a update loop
+    def update(self,training_data):
+        global NUM_UPDATE
+        s, a, r, adv = training_data
+#           print("data.shape:",s.shape,a.shape,r.shape)
+        #adv = self.sess.run(self.advantage, {self.tfs: s, self.tfdc_r: r})
+        # update actor and critic in a update loop
 
-                #oldpi_pro = self.sess.run(self.oldpi.prob(self.tfa),{self.tfs:s, self.tfa:a})
-#                print(oldpi_pro)
-                [self.sess.run(self.a_train_op, {self.tfs: s, self.tfa: a, self.tfadv: adv}) for _ in range(UPDATE_STEP)]
-                [self.sess.run(self.c_train_op, {self.tfs: s, self.tfdc_r: r}) for _ in range(UPDATE_STEP)]
+        #oldpi_pro = self.sess.run(self.oldpi.prob(self.tfa),{self.tfs:s, self.tfa:a})
+#           print(oldpi_pro)
+        [self.sess.run(self.a_train_op, {self.tfs: s, self.tfa: a, self.tfadv: adv}) for _ in range(UPDATE_STEP)]
+        [self.sess.run(self.c_train_op, {self.tfs: s, self.tfdc_r: r}) for _ in range(UPDATE_STEP)]
+        print("ppo training...")
+        self.sess.run(self.update_oldpi_op)  # copy pi to old pi
 
-                self.sess.run(self.update_oldpi_op)  # copy pi to old pi
-
-                UPDATE_EVENT.clear()  # updating finished
-                GLOBAL_UPDATE_COUNTER = 0  # reset counter
-                ROLLING_EVENT.set()  # set roll-out available
-#                print("++++++++++++++updated++++++++++++")
-                N_WORKER_READY = 0
-                #print(time.time()-t1,"-----",t1-t0)
-                if GLOBAL_EP%100 == 0:
-                    self.save(GLOBAL_EP)
+        if NUM_UPDATE%10 == 0:
+            self.save(NUM_UPDATE)
+        NUM_UPDATE += 1
 
     def _build_a_net(self, name, trainable):
         with tf.variable_scope(name):
@@ -144,7 +138,8 @@ class Worker(object):
     def work(self):
         global GLOBAL_EP, GLOBAL_RUNNING_R, GLOBAL_UPDATE_COUNTER, N_WORKER_READY
         while not COORD.should_stop():
-            s = self.env.reset()
+            s_0 = self.env.reset()
+            s = np.concatenate([s_0,np.zeros(13)],-1)
             ep_r = 0
             buffer_s, buffer_a, buffer_r = [], [], []
             for t in range(EP_LEN):
@@ -152,7 +147,8 @@ class Worker(object):
                     ROLLING_EVENT.wait()  # wait until PPO is updated
                     buffer_s, buffer_a, buffer_r = [], [], []  # clear history buffer, use new policy to collect data
                 a = self.ppo.choose_action(s)
-                s_, r, done, _ = self.env.step(a)
+                s_, r, done, _ = self.env.step(a[-1::])
+                s_ = np.concatenate([s_,np.zeros(13)],-1)
                 buffer_s.append(s)
                 buffer_a.append(a)
                 #buffer_r.append(r)
@@ -198,7 +194,7 @@ class Worker(object):
 
 
 if __name__ == '__main__':
-    GLOBAL_PPO = PPO()
+    GLOBAL_PPO = PPO2()
 
 
 # Training  (Comment the following section for Testing only)
@@ -259,15 +255,17 @@ if __name__ == '__main__':
 
 #Testing  (Comment the following section for Training only)
 
-    GLOBAL_PPO.restore(1000)
-    factor1 = 2*np.pi/1000
-    vtest = GLOBAL_PPO.sess.run(GLOBAL_PPO.v, {GLOBAL_PPO.tfs: [[np.cos(th*factor1),np.sin(th*factor1),0] for th in range(1000)]})
-    #print(vtest)
-    plt.plot(np.arange(len(vtest))*factor1, vtest)
-    plt.xlabel('theta')
-    plt.ylabel('value')
-    #plt.ion()
-    plt.show()
+    #GLOBAL_PPO.restore(100)
+
+    #
+    # factor1 = 2*np.pi/1000
+    # vtest = GLOBAL_PPO.sess.run(GLOBAL_PPO.v, {GLOBAL_PPO.tfs: [[np.cos(th*factor1),np.sin(th*factor1),0] for th in range(1000)]})
+    # #print(vtest)
+    # plt.plot(np.arange(len(vtest))*factor1, vtest)
+    # plt.xlabel('theta')
+    # plt.ylabel('value')
+    # #plt.ion()
+    # plt.show()
 
 
     env = gym.make('Pendulum-v0')
@@ -275,11 +273,13 @@ if __name__ == '__main__':
     env.reset()
     state = [np.pi,0]
     s = np.array([np.cos(state[0]),np.sin(state[0]),state[1]])
+    s = np.concatenate([s,np.zeros(13)],-1)
     env.env.state = state
     totalreward = 0
     for t in range(200):
         env.render()
         s, r_test, _, _ = env.step(GLOBAL_PPO.choose_action(s))
+        s = np.concatenate([s, np.zeros(13)], -1)
         #totalreward += ((r_test+8)/8)*0.9**t
         totalreward += r_test
     print("reward: ",totalreward)

@@ -14,6 +14,8 @@ from modules.vae import VAE, VAELoss
 
 from modules.ppo import PPO, LstmPolicy
 
+from modules.ppo2 import PPO2, Worker
+
 import tensorflow as tf
 import numpy as np
 import yaml
@@ -59,11 +61,14 @@ class Machine(object):
 
 		z = tf.clip_by_value(z, -5, 5)
 		test_z = tf.clip_by_value(test_z, -5, 5)
-
+		self.test_z = test_z
 		# z = tf.Print(z, [z[0]], summarize=15)
 		# test_z = tf.Print(test_z, [test_z[0]], summarize=20)
 
 		self.ppo = PPO(args, 'ppo', z=z, test_z=test_z, ent_coef=0.00000001, vf_coef=1, max_grad_norm=0.5)
+
+		self.ppo2 = PPO2(restore_weight=False)
+
 
 		self.test_vae_loss.inference()
 		# z = self.c3d_encoder.inference()
@@ -123,7 +128,19 @@ class Machine(object):
 		td_map[self.test_raw_image] = np.array([obs[0]])# frame输入
 		td_map[self.test_speed] = np.array([[obs[1]]])# speed
 
-		return self.sess.run([self.ppo.act_model.a0, self.ppo.act_model.v0, self.ppo.act_model.snew, self.ppo.act_model.neglogp0, self.test_vae_loss.recon], td_map)
+		return self.sess.run([self.ppo.act_model.a0], td_map)
+		#return self.sess.run([self.ppo.act_model.a0, self.ppo.act_model.v0, self.ppo.act_model.snew, self.ppo.act_model.neglogp0, self.test_vae_loss.recon], td_map)
+
+	def z_a_ppo2(self, obs, state):
+		td_map = {}
+		td_map[self.test_raw_image] = np.array([obs[0]])# frame输入
+		z0 = self.sess.run(self.test_z,td_map)
+		z = np.concatenate([z0,[[obs[1]]]],1)[0]
+		return z, self.ppo2.choose_action(z)
+
+
+	def update(self, training_data):
+		self.ppo2.update(training_data)
 
 
 	def value(self, obs, state, action):
@@ -132,6 +149,7 @@ class Machine(object):
 		td_map[self.test_raw_image] = np.array([obs[0]])
 		td_map[self.test_speed] = np.array([[obs[1]]])
 		return self.sess.run([self.ppo.act_model.a_z, self.ppo.act_model.v0, self.ppo.act_model.snew, self.ppo.act_model.neglogpz, self.test_vae_loss.recon], td_map)
+
 
 	def train(self, inputs, global_step):
 		obs, actions, values, neglogpacs, rewards, vaerecons, states, std_actions, manual = inputs

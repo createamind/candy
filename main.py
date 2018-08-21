@@ -94,13 +94,14 @@ from carla.settings import CarlaSettings
 from carla.tcp import TCPConnectionError
 from carla.util import print_over_same_line
 
-from carla_wrapper import Carla_Wrapper
+from carla_wrapper import Carla_Wrapper, BUFFER_LIMIT
 
 WINDOW_WIDTH = 500
 WINDOW_HEIGHT = 500
 MINI_WINDOW_WIDTH = 200
 MINI_WINDOW_HEIGHT = 200
-BUFFER_LIMIT = 258
+
+
 
 def make_carla_settings(args):
     """Make a CarlaSettings object with the settings we need."""
@@ -197,8 +198,8 @@ class CarlaGame(object):
         self.history_collision = 0
         self.ucnt = 0
         self.prev_control = None
-        self.endnow = False#按下v会置为True，立刻进行ｔｒａｉｎｉｎｇ
-
+        self.endnow = False #按下v会置为True，立刻进行ｔｒａｉｎｉｎｇ
+        self.control = VehicleControl()
 
         self.carla_wrapper = wrapper
 
@@ -211,8 +212,11 @@ class CarlaGame(object):
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         return
+                #print("on_loop------------")
                 self._on_loop() #整个模型与carla交互.
+                #print("_on_loop")
                 self._on_render() #pygame展示
+                #print("_on_render")
         finally:
             pygame.quit()
 
@@ -243,6 +247,25 @@ class CarlaGame(object):
         self.client.start_episode(player_start)
         self._timer = Timer()
         self._is_on_reverse = False
+        #print(VehicleControl().steer,VehicleControl().throttle,VehicleControl().brake,VehicleControl().hand_brake,VehicleControl().reverse)
+
+
+        cnt = 1; z1 = 0
+        while ( cnt < 3 ):
+            self.client.send_control(VehicleControl())
+            z0=z1
+            z1 = self.client.read_data()[0].player_measurements.transform.location.z
+            print(z1)
+            if z0 - z1 == 0:
+                cnt += 1
+
+
+        # for _ in range(20):
+        #     self.client.send_control(VehicleControl())
+        #     print("z:",self.client.read_data()[0].player_measurements.transform.location.z)
+        #     print("-"*_)
+        # time.sleep(5)
+        print('Starting new episode done.\n')
 
     def _on_loop(self):
         self._timer.tick()
@@ -255,12 +278,10 @@ class CarlaGame(object):
         self._lidar_measurement = sensor_data.get('Lidar32', None)
         # self._human_image = sensor_data.get('CameraForHuman', None)
 
-
         collision = self.get_collision(measurements) #得到瞬时的碰撞
 
         control, manual_reward = self._get_keyboard_control(pygame.key.get_pressed()) #得到键盘的输入，以及键盘输入的reward
         reward, _ = self.calculate_reward(measurements, manual_reward, collision) #计算reward，如果键盘没有reward
-
 
         # Print measurements every second.
         if self._timer.elapsed_seconds_since_lap() > 1.0:
@@ -284,7 +305,6 @@ class CarlaGame(object):
                 self._print_player_measurements(measurements.player_measurements)
 
             # Plot position on the map as well.
-
             self._timer.lap()
 
 
@@ -310,52 +330,54 @@ class CarlaGame(object):
         if self._enable_autopilot: #系统自带的自动驾驶
             control = measurements.player_measurements.autopilot_control
 
+        obs = self.carla_wrapper.pre_process0(measurements, sensor_data)
 
-        model_control = self.carla_wrapper.get_control([measurements, sensor_data, control, reward, collision, control, self.manual])
+        z, a, model_control = self.carla_wrapper.get_z_a_c(self.control,obs)
+
+        done = collision > 0 or measurements.player_measurements.intersection_offroad > 0 or measurements.player_measurements.intersection_otherlane > 0
+
+        # Now we've collected { reward, done; obs, z; a  }, Please notice that the training tuple is (s,a,r)
 
 
-        # else:
-        #     if random.randint(1,2) == 1:
-        #     else:
-        #         control = measurements.player_measurements.autopilot_control
 
-
-        #     self.ucnt = 0
-        #     self.prev_control = control
-        # else:
-        #     self.ucnt += 1
-        #     control = self.prev_control
-
-        # print(measurements.player_measurements.transform.rotation)
-        # print(measurements.player_measurements.transform.location)
-        # print(measurements.player_measurements.transform.orientation)
-        print(control)
-        print(model_control)
-
+        # print(control)
+        print("=====================")
+        print("steer:",model_control.steer,"\nthrottle:",model_control.throttle,"\nbrake:",model_control.brake)
+        # print("=====================")
         #Speed Limit
-        if measurements.player_measurements.forward_speed * 3.6 > 30:
-            model_control.throttle = 0
+        # if measurements.player_measurements.forward_speed * 3.6 > 30:
+        #     model_control.throttle = 0
 
         if self.manual_control:
             self.client.send_control(control)
         else:
             self.client.send_control(model_control)
 
-        #控制什么时候进行ｔｒａｉｎｉｎｇ
-        if self.endnow or (self.cnt > 10 and (self.cnt > BUFFER_LIMIT or collision > 0 or measurements.player_measurements.intersection_offroad > 0.95\
-         or measurements.player_measurements.intersection_otherlane > 0.95)):
+
+
+        # worker and training
+
+        #不应该进行trainging
+        self.endnow = False
+        #记录当前步的状况
+        self.carla_wrapper.worker([reward, done, obs, z, a])
+        self.cnt += 1
+
+        #time.sleep(30)
+
+        if (done):
+            self._initialize_game()
+
+        if self.endnow or (self.cnt > BUFFER_LIMIT):  # (s,r,a)的指标为：0,1,2,...BUFFER_LIMIT.
         # if self.endnow or (self.cnt > 10 and (self.cnt > BUFFER_LIMIT or collision > 0)):
             #总结这段时间的情况，调用training
             rewardlala = -1 if (collision > 0 or measurements.player_measurements.intersection_offroad > 0.95 or measurements.player_measurements.intersection_otherlane > 0.95) else None
-            self.carla_wrapper.post_process([measurements, sensor_data, model_control, rewardlala, collision, control, self.manual], self.cnt)
+            #self.carla_wrapper.post_process([measurements, sensor_data, model_control, rewardlala, collision, control, self.manual], self.cnt)
+            self.carla_wrapper.train()
             self.cnt = 0
             self.endnow = False
-        else:
-            #不应该进行trainging
-            self.cnt += 1
-            self.endnow = False
-            #记录当前步的状况
-            self.carla_wrapper.update([measurements, sensor_data, model_control, reward, collision, control, self.manual])
+            self._initialize_game()
+
 
 
     def get_collision(self, measurements):
@@ -378,9 +400,10 @@ class CarlaGame(object):
         # print('speed = ' + str(speed) + 'collision = ' + str(collision) + 'intersection = ' + str(intersection))
 
 
-        if reward is None:
-            reward = (60 - abs(speed - 30) * 2.0 - collision / 50 - intersection * 100) / 100.0 #计算reward, speed距离30km/h的差，collision大概是在0~10000
+        #if reward is None:
+            #reward = (60 - abs(speed - 30) * 2.0 - collision / 50 - intersection * 100) / 100.0 #计算reward, speed距离30km/h的差，collision大概是在0~10000
             # reward = ( speed - collision / 50 - intersection * 100) / 100.0 #计算reward, speed距离30km/h
+        reward = speed
         return reward, [speed, collision, intersection]
         
     def _get_keyboard_control(self, keys):

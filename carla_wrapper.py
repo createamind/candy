@@ -13,13 +13,25 @@ import msgpack
 import msgpack_numpy as m
 m.patch()
 
+import time
+
 import os
 
 # BUFFER_LIMIT = 258
 BATCH_SIZE = 128
-KEEP_CNT = 1500
+KEEP_CNT = 200
+BUFFER_LIMIT = 200#258
+NUM_EPISODE = 5
+EPISODE_MAXLEN = 300
+MINI_BATCH_SIZE = 50
+NUM_T = 20
 MAX_SAVE = 0
 TRAIN_EPOCH = 15
+GAMMA = 0.9
+
+import functools
+
+print = functools.partial(print, flush=True)
 
 class Carla_Wrapper(object):
 
@@ -31,7 +43,8 @@ class Carla_Wrapper(object):
 		self.gamma = gamma
 		self.state = self.machine.ppo.initial_state
 
-		self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states, self.std_actions, self.manual = [],[],[],[],[],[],[],[],[]
+		self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states, \
+		self.std_actions, self.manual, self.discounted_r, self.done, self.z, self.adv = [],[],[],[],[],[],[],[],[],[],[],[],[]
 		#obs:观察到的东西((连续的两帧包括深度的图像, speed), actions:采取的动作的code, values:PPO中critic的对当前局面的估价, neglogpacs：PPO中actor对当前动作的概率的负log, rewards：当前的奖励
 		#vaerecons:VAE的重建误差，用于difficulty的计算,进行优先采样 states：ＰＰＯ中ＬＳＴＭ的中间状态, std_actions:人给的动作的ｃｏｄｅ, manual：是否应该使用人给的动作进行模仿学习
 		self.last_frame = None
@@ -104,15 +117,76 @@ class Carla_Wrapper(object):
 
 		obs, reward, action, std_action, manual = self.pre_process(inputs)
 
-
 		self.update_reward(cnt, obs, action, reward)
 
 
 
+
+
 		print(self.rewards[-20:])
-		print('Start Memory Replay')
+		print('Start Memory Replay.')
 		self.memory_training()
-		print('Memory Replay Done')
+		#print('Memory Replay Done')
+
+	def post_process0(self):
+
+		r, z, done, a = self.rewards, self.z,  self.done, self.actions
+		self.rewards, self.z, self.done, self.actions = [],[],[],[]
+		# self.actions.append(action[0])
+		# self.values.append(value)
+		# self.neglogpacs.append(neglogpacs)
+		# self.rewards.append(reward)
+		# self.vaerecons.append(vaerecon)
+		# self.std_actions.append(1)
+		# self.manual.append(manual)
+
+		i_left = 0
+		for i in range(BUFFER_LIMIT+1):
+
+			if (i-i_left) == NUM_T  or (i == BUFFER_LIMIT) or done[i] == True:
+				i_right = i
+
+				if done[i] == True:
+					v_s_ = 0.
+				else:
+					v_s_ = self.machine.ppo2.get_v(z[i])
+
+				discounted_r = []
+				for immediate_r in r[i_right:i_left:-1]:
+					v_s_ = immediate_r + GAMMA * v_s_
+					discounted_r.append(v_s_)
+				discounted_r.reverse()
+
+				self.discounted_r = self.discounted_r + discounted_r
+				self.z = self.z + z[i_left:i_right:]
+				self.actions = self.actions + a[i_left:i_right:]
+
+				i_left = i_right+1
+
+		self.z, self.actions, self.discounted_r = np.vstack(self.z), np.vstack(self.actions), np.vstack(self.discounted_r)
+
+		self.adv = self.machine.ppo2.sess.run(self.machine.ppo2.advantage, {self.machine.ppo2.tfs: self.z, self.machine.ppo2.tfdc_r: self.discounted_r})
+
+
+
+
+
+	def train(self):
+		print("Training")
+		print("buffer size:", len(self.z),len(self.actions))
+		self.post_process0()
+		training_data = self.z, self.actions, self.discounted_r, self.adv
+		self.machine.update(training_data)
+
+		print("Training done.")
+		self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states, \
+		self.std_actions, self.manual, self.discounted_r, self.done, self.z, self.adv = [],[],[],[],[],[],[],[],[],[],[],[],[]
+
+		# self.z
+		# self.actions
+		# self.values
+		# self.rewards
+		# self.done
 
 
 	def pre_process(self, inputs, refresh=False):
@@ -128,7 +202,7 @@ class Carla_Wrapper(object):
 		if refresh:
 			self.last_frame = nowframe
 
-		obs = (frame, measurements.player_measurements.forward_speed * 3.6 / 100) #obs分为当前frame和speed
+		obs = (frame, measurements.player_measurements.forward_speed * 3.6 / 100) #obs分为当前frame 320x320x8 和speed 1
 
 		#将control从VehicleControl()变为数字
 		action = self.analyze_control(control)
@@ -136,30 +210,52 @@ class Carla_Wrapper(object):
 		if std_action == 0:
 			manual = False
 		return obs, reward, action, std_action, manual
-		
 
-	def update(self, inputs):
+	def pre_process0(self, measurements, sensor_data, refresh=False):
 
-		obs, reward, action, std_action, manual = self.pre_process(inputs, refresh=True)
+		sensor_data = self.process_sensor_data(sensor_data)
+
+		nowframe = np.concatenate([sensor_data[0], sensor_data[1]], 2)#深度和RGB图连接起来
+
+		if self.last_frame is None:
+			self.last_frame = nowframe
+
+		frame = np.concatenate([self.last_frame, nowframe], 2)#连续两帧连续起来
+		if refresh:
+			self.last_frame = nowframe
+
+		obs = (frame, measurements.player_measurements.forward_speed * 3.6 / 100) #obs分为当前frame 320x320x8 和speed 1
+
+		return obs
 
 
+	def worker(self, inputs):
 
+		reward, done, obs, z, action = inputs
 
 		self.states.append(self.state)
 
-		_, value, self.state, neglogpacs, vaerecon = self.machine.value(obs, self.state, action)
+		_, value, self.state, neglogpacs, vaerecon = self.machine.value(obs, self.state, action[0])
+
 
 		self.obs.append(obs)
+		self.z.append(z)
 		self.actions.append(action)
 		self.values.append(value)
 		self.neglogpacs.append(neglogpacs)
 		self.rewards.append(reward)
 		self.vaerecons.append(vaerecon)
-		self.std_actions.append(std_action)
-		self.manual.append(manual)
+		self.std_actions.append(1)
+		self.manual.append(done)
+		self.done.append(done)
 
-		# self.red_buffer.append(red)
-		# self.manual_buffer.append(manual)
+		# uncomment the following section to set the size limit.
+
+		# if len(self.obs) > BUFFER_LIMIT+1:
+		# 	rem = len(self.obs) - BUFFER_LIMIT-1
+		# 	self.obs, self.z, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.std_actions, self.manual, self.done = \
+		# 		self.obs[rem:], self.z[rem:], self.actions[rem:], self.values[rem:], self.neglogpacs[rem:], self.rewards[rem:], self.vaerecons[rem:], self.std_actions[rem:], self.manual[rem:], self.done[rem:]
+
 
 	def pretrain(self):
 		raise NotImplementedError
@@ -191,7 +287,9 @@ class Carla_Wrapper(object):
 			return np.exp(x) / np.sum(np.exp(x), axis=0)
 		difficulty = softmax(difficulty * 5)
 		print(difficulty[-20:])
-		print("Memory Extraction Done.")
+		print("Memory Extraction Done.\nTraining...")
+
+		time.sleep(0.1)
 
 		for _ in tqdm(range(TRAIN_EPOCH)):
 			roll = np.random.choice(len(difficulty), BATCH_SIZE, p=difficulty)
@@ -205,13 +303,8 @@ class Carla_Wrapper(object):
 
 		self.machine.save()
 
-		# if pretrain:          
-		# 	self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states = [],[],[],[],[],[],[]
 
-		if len(self.obs) > KEEP_CNT:
-			rem = len(self.obs) - KEEP_CNT
-			self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states, self.std_actions, self.manual = \
-				self.obs[rem:],self.actions[rem:],self.values[rem:],self.neglogpacs[rem:],self.rewards[rem:],self.vaerecons[rem:], self.states[rem:], self.std_actions[rem:], self.manual[rem:]
+		self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states, self.std_actions, self.manual = [],[],[],[],[],[],[],[],[]
 
 	def decode_control(self, cod):
 		#将数字的ｃｏｎｔｒｏｌ转换为VehicleControl()
@@ -249,8 +342,17 @@ class Carla_Wrapper(object):
 		
 		return control
 
-	def get_control(self, inputs):
-		obs, reward, action, std_action, manual = self.pre_process(inputs)
-		action, _, _, _, _ = self.machine.step(obs, self.state)#整个模型跑一步
-		control = self.decode_control(action)
-		return control
+	def get_z_a_c(self, control, obs):
+		# obs:320x320x8,speed.
+		z, action = self.machine.z_a_ppo2(obs, self.state) #整个模型跑一步
+
+		#control = VehicleControl()
+		control.steer = action[0]
+		a_v = action[1]
+		if a_v >= 0:
+			control.throttle = a_v
+			control.brake = 0
+		else:
+			control.throttle = 0
+			control.brake = -a_v
+		return z, action, control
