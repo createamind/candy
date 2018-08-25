@@ -356,3 +356,19 @@ class Carla_Wrapper(object):
 			control.throttle = 0
 			control.brake = -a_v
 		return z, action, control
+
+
+	# def get_z_a_c(self, control, obs):
+	# 	# obs:320x320x8,speed.
+	# 	z, action = self.machine.z_a_ppo2(obs, self.state) #整个模型跑一步
+    #
+	# 	#control = VehicleControl()
+	# 	control.steer = action[0]
+	# 	a_v = action[1]+0.8
+	# 	if a_v >= 0:
+	# 		control.throttle = a_v/1.8
+	# 		control.brake = 0
+	# 	else:
+	# 		control.throttle = 0
+	# 		control.brake = -a_v*5
+	# 	return z, action, control

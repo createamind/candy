@@ -81,7 +81,7 @@ class PPO2(object):
         #for _ in (tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)):
         #    print(_)
         if self.restore_weight:
-            self.restore(100)
+            self.restore(6200)
 
     def save(self,step):
         self.saver.save(self.sess, sys.path[0]+'/modules/save/ppo', global_step=step, write_meta_graph=False, write_state=False)
