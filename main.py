@@ -94,7 +94,7 @@ from carla.settings import CarlaSettings
 from carla.tcp import TCPConnectionError
 from carla.util import print_over_same_line
 
-from carla_wrapper import Carla_Wrapper, BUFFER_LIMIT
+from carla_wrapper import Carla_Wrapper, BUFFER_LIMIT, MEMORY_CAPACITY
 
 WINDOW_WIDTH = 500
 WINDOW_HEIGHT = 500
@@ -202,6 +202,9 @@ class CarlaGame(object):
         self.control = VehicleControl()
 
         self.carla_wrapper = wrapper
+
+        self.z = None
+        self.done = True
 
     def execute(self):
         """Launch the PyGame."""
@@ -332,11 +335,25 @@ class CarlaGame(object):
 
         obs = self.carla_wrapper.pre_process0(measurements, sensor_data)
 
-        z, a, model_control = self.carla_wrapper.get_z_a_c(self.control,obs)
+        # ( for ppo2 ) z, a, model_control = self.carla_wrapper.get_z_a_c(self.control,obs)
+        z_, a, model_control = self.carla_wrapper.get_z_a_c(self.control, obs)
 
         done = collision > 0 or measurements.player_measurements.intersection_offroad > 0 or measurements.player_measurements.intersection_otherlane > 0
 
-        # Now we've collected { reward, done; obs, z; a  }, Please notice that the training tuple is (s,a,r)
+
+        if self.done == False:
+            self.carla_wrapper.machine.ddpg.store_transition(self.z, a, reward, z_, done)
+            self.cnt += 1
+
+            if self.carla_wrapper.machine.ddpg.pointer > MEMORY_CAPACITY:
+                self.carla_wrapper.machine.ddpg.sigm *= .9995  # decay the action randomness
+                self.carla_wrapper.train_ddpg()
+
+        self.done = done
+        self.z = z_
+
+
+        # Now we've collected { reward, done; obs, z; a  }, Please notice that the training tuple is (s,a,r) or (s,a,r,s_).
 
 
 
@@ -344,38 +361,45 @@ class CarlaGame(object):
         print("=====================")
         print("steer:",model_control.steer,"\nthrottle:",model_control.throttle,"\nbrake:",model_control.brake)
         # print("=====================")
+
         #Speed Limit
         # if measurements.player_measurements.forward_speed * 3.6 > 30:
         #     model_control.throttle = 0
 
-        if self.manual_control:
-            self.client.send_control(control)
-        else:
-            self.client.send_control(model_control)
-
-
+        # if self.manual_control:
+        #     self.client.send_control(control)
+        # else:
+        #     self.client.send_control(model_control)
+        self.client.send_control(model_control)
 
         # worker and training
 
         #不应该进行trainging
         self.endnow = False
         #记录当前步的状况
-        self.carla_wrapper.worker([reward, done, obs, z, a])
-        self.cnt += 1
+        # ( for ppo2 ) self.carla_wrapper.worker([reward, done, obs, z, a])
+        # ( for ppo2 ) self.cnt += 1
 
         #time.sleep(30)
 
         if (done):
+
+            self.done == True
             self._initialize_game()
+
+        print("self.cnt:", self.cnt)
 
         if self.endnow or (self.cnt > BUFFER_LIMIT):  # (s,r,a)的指标为：0,1,2,...BUFFER_LIMIT.
         # if self.endnow or (self.cnt > 10 and (self.cnt > BUFFER_LIMIT or collision > 0)):
             #总结这段时间的情况，调用training
-            rewardlala = -1 if (collision > 0 or measurements.player_measurements.intersection_offroad > 0.95 or measurements.player_measurements.intersection_otherlane > 0.95) else None
+            #rewardlala = -1 if (collision > 0 or measurements.player_measurements.intersection_offroad > 0.95 or measurements.player_measurements.intersection_otherlane > 0.95) else None
             #self.carla_wrapper.post_process([measurements, sensor_data, model_control, rewardlala, collision, control, self.manual], self.cnt)
-            self.carla_wrapper.train()
+            #(for ppo2) self.carla_wrapper.train()
+            #self.carla_wrapper.train_ddpg()
             self.cnt = 0
             self.endnow = False
+
+            self.done == True
             self._initialize_game()
 
 

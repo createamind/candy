@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from candy_model import Machine
+from candy_model import Machine, MEMORY_CAPACITY
 import numpy as np
 import yaml
 
@@ -119,16 +119,12 @@ class Carla_Wrapper(object):
 
 		self.update_reward(cnt, obs, action, reward)
 
-
-
-
-
 		print(self.rewards[-20:])
 		print('Start Memory Replay.')
 		self.memory_training()
 		#print('Memory Replay Done')
 
-	def post_process0(self):
+	def post_process_ppo2(self):
 
 		r, z, done, a = self.rewards, self.z,  self.done, self.actions
 		self.rewards, self.z, self.done, self.actions = [],[],[],[]
@@ -170,13 +166,14 @@ class Carla_Wrapper(object):
 
 
 
-
 	def train(self):
 		print("Training")
 		print("buffer size:", len(self.z),len(self.actions))
-		self.post_process0()
+		self.post_process_ppo2()
+		#self.post_process_ddpg()
 		training_data = self.z, self.actions, self.discounted_r, self.adv
-		self.machine.update(training_data)
+		self.machine.update_ppo2(training_data)
+		#self.machine.update_ddpg(training_data)
 
 		print("Training done.")
 		self.obs, self.actions, self.values, self.neglogpacs, self.rewards, self.vaerecons, self.states, \
@@ -187,6 +184,11 @@ class Carla_Wrapper(object):
 		# self.values
 		# self.rewards
 		# self.done
+
+	def train_ddpg(self):
+		print("DDPG Training")
+		self.machine.ddpg.learn()
+		print("Training done.")
 
 
 	def pre_process(self, inputs, refresh=False):
@@ -344,7 +346,8 @@ class Carla_Wrapper(object):
 
 	def get_z_a_c(self, control, obs):
 		# obs:320x320x8,speed.
-		z, action = self.machine.z_a_ppo2(obs, self.state) #整个模型跑一步
+		# (for ppo2)z, action = self.machine.z_a_ppo2(obs, self.state) #整个模型跑一步
+		z, action = self.machine.z_a_ddpg(obs, self.state)  # 整个模型跑一步
 
 		#control = VehicleControl()
 		control.steer = action[0]

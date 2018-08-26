@@ -16,6 +16,8 @@ from modules.ppo import PPO, LstmPolicy
 
 from modules.ppo2 import PPO2, Worker
 
+from modules.ddpg import DDPG, MEMORY_CAPACITY
+
 import tensorflow as tf
 import numpy as np
 import yaml
@@ -69,6 +71,7 @@ class Machine(object):
 
 		self.ppo2 = PPO2(restore_weight=False)
 
+		self.ddpg = DDPG(2, 16, 1)
 
 		self.test_vae_loss.inference()
 		# z = self.c3d_encoder.inference()
@@ -138,8 +141,18 @@ class Machine(object):
 		z = np.concatenate([z0,[[obs[1]]]],1)[0]
 		return z, self.ppo2.choose_action(z)
 
+	def z_a_ddpg(self, obs, state):
+		td_map = {}
+		td_map[self.test_raw_image] = np.array([obs[0]])# frame输入
+		z0 = self.sess.run(self.test_z,td_map)
+		z = np.concatenate([z0,[[obs[1]]]],1)[0]
+		a = self.ddpg.choose_action(z)
 
-	def update(self, training_data):
+		a = np.clip(np.random.normal(a, self.ddpg.sigm), -1, 1)
+
+		return z, a
+
+	def update_ppo2(self, training_data):
 		self.ppo2.update(training_data)
 
 
