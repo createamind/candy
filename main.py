@@ -346,7 +346,7 @@ class CarlaGame(object):
             self.cnt += 1
 
             if self.carla_wrapper.machine.ddpg.pointer > MEMORY_CAPACITY:
-                self.carla_wrapper.machine.ddpg.sigm *= .9995  # decay the action randomness
+                self.carla_wrapper.machine.ddpg.sigm *= .9999  # decay the action randomness
                 self.carla_wrapper.train_ddpg()
 
         self.done = done

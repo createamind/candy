@@ -1,18 +1,3 @@
-"""
-A simple version of OpenAI's Proximal Policy Optimization (PPO). [https://arxiv.org/abs/1707.06347]
-
-Distributing workers in parallel to collect data, then stop worker's roll-out and train PPO on collected data.
-Restart workers once PPO is updated.
-
-The global PPO updating rule is adopted from DeepMind's paper (DPPO):
-Emergence of Locomotion Behaviours in Rich Environments (Google Deepmind): [https://arxiv.org/abs/1707.02286]
-
-code based on: https://morvanzhou.github.io/tutorials
-
-Dependencies:
-tensorflow r1.3
-gym 0.9.2
-"""
 
 import tensorflow as tf
 import numpy as np

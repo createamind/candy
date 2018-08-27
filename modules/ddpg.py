@@ -1,18 +1,4 @@
-"""
-Note: This is a updated version from my previous code,
-for the target network, I use moving average to soft replace target parameters instead using assign function.
-By doing this, it has 20% speed up on my machine (CPU).
 
-Deep Deterministic Policy Gradient (DDPG), Reinforcement Learning.
-DDPG is Actor Critic based algorithm.
-Pendulum example.
-
-code base on: https://morvanzhou.github.io/tutorials/
-
-Using:
-tensorflow 1.0
-gym 0.8.0
-"""
 
 import tensorflow as tf
 import numpy as np
@@ -28,7 +14,7 @@ LR_A = 0.001    # learning rate for actor
 LR_C = 0.002    # learning rate for critic
 GAMMA = 0.9     # reward discount
 DECAY = 0.99    # soft replacement
-MEMORY_CAPACITY = 10000
+MEMORY_CAPACITY = 1000
 BATCH_SIZE = 32
 
 RENDER = False
@@ -120,6 +106,8 @@ class DDPG(object):
         trainable = not reuse
         with tf.variable_scope('Critic', reuse=reuse, custom_getter=custom_getter):
             n_l1 = 30
+            s = tf.layers.dense(s, 100, tf.nn.relu, trainable=trainable)
+            s = tf.layers.dense(s, self.s_dim, tf.nn.relu, trainable=trainable)
             w1_s = tf.get_variable('w1_s', [self.s_dim, n_l1], trainable=trainable)
             w1_a = tf.get_variable('w1_a', [self.a_dim, n_l1], trainable=trainable)
             b1 = tf.get_variable('b1', [1, n_l1], trainable=trainable)
